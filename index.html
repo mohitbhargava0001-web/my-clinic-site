@@ -164,6 +164,15 @@
             text-align: center;
             margin-top: 10px;
             min-height: 20px;
+            word-break: break-word;
+        }
+
+        .info-text {
+            color: var(--primary-dark);
+            font-size: 0.84rem;
+            text-align: center;
+            margin-top: 8px;
+            min-height: 18px;
         }
 
         .dashboard {
@@ -345,7 +354,7 @@
         <h2>Clinic Login</h2>
         <p class="login-sub">Apne registered Gmail aur Password se login karein</p>
 
-        <form id="loginForm">
+        <form id="loginForm" action="javascript:void(0);">
             <div class="form-group">
                 <label for="loginEmail">Gmail ID</label>
                 <input type="email" id="loginEmail" placeholder="doctor@gmail.com ya reception@gmail.com" required>
@@ -355,6 +364,7 @@
                 <input type="password" id="loginPassword" placeholder="••••••••" required>
             </div>
             <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
+            <p class="info-text" id="loginStatus"></p>
             <p class="error-text" id="loginError"></p>
         </form>
     </div>
@@ -378,7 +388,7 @@
             <div class="grid-2">
                 <div class="card">
                     <h3 id="addFormHeading">Add New Patient</h3>
-                    <form id="addPatientForm">
+                    <form id="addPatientForm" action="javascript:void(0);">
                         <div class="form-group">
                             <label>Patient Name (Mareez ka Naam) *</label>
                             <input type="text" id="pName" required placeholder="Poora naam likhein">
@@ -452,7 +462,7 @@
                     <h3>Doctor: Visit Treatment, Medicine/Item, Bill & Next Date</h3>
                     <p class="muted" id="selectedPatientBanner" style="margin-bottom: 12px;">Pehle koi patient select karein.</p>
 
-                    <form id="visitUpdateForm">
+                    <form id="visitUpdateForm" action="javascript:void(0);">
                         <div class="form-group">
                             <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
                             <input type="date" id="visitDate" required>
@@ -485,6 +495,25 @@
     </div>
 
     <script type="module">
+        const statusEl = document.getElementById("loginStatus");
+        const errEl = document.getElementById("loginError");
+        const loginForm = document.getElementById("loginForm");
+        const loginBtn = document.getElementById("loginBtn");
+
+        window.addEventListener("error", (ev) => {
+            errEl.textContent = "Page Error: " + (ev.message || "Script error");
+        });
+        window.addEventListener("unhandledrejection", (ev) => {
+            const reason = ev.reason || {};
+            errEl.textContent = "Error: " + (reason.code || reason.message || String(reason));
+        });
+
+        loginForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            errEl.textContent = "";
+            statusEl.textContent = "Firebase connect ho raha hai...";
+        });
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
         import {
             getAuth,
@@ -519,6 +548,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        statusEl.textContent = "";
+
         let currentUser = null;
         let currentRole = "reception";
         let patientsCache = [];
@@ -530,55 +561,22 @@
         const todayISO = () => new Date().toISOString().split("T")[0];
         document.getElementById("visitDate").value = todayISO();
 
-        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const email = document.getElementById("loginEmail").value.trim();
             const password = document.getElementById("loginPassword").value;
-            const errEl = document.getElementById("loginError");
             errEl.textContent = "";
+            statusEl.textContent = "Login jaari hai...";
+            loginBtn.disabled = true;
 
             try {
                 await signInWithEmailAndPassword(auth, email, password);
+                statusEl.textContent = "Login safal! Dashboard khul raha hai...";
             } catch (err) {
-                errEl.textContent = "Login fail hua: Gmail ya Password galat hai.";
-            }
-        });
-
-        document.getElementById("logoutBtn").addEventListener("click", async () => {
-            await signOut(auth);
-        });
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                currentRole = await detectUserRole(user);
-                setupUIForRole(currentRole, user.email);
-                document.getElementById("loginSection").classList.add("hidden");
-                document.getElementById("dashboardSection").style.display = "block";
-                startRealtimeListeners();
-            } else {
-                currentUser = null;
-                document.getElementById("dashboardSection").style.display = "none";
-                document.getElementById("loginSection").classList.remove("hidden");
-            }
-        });
-
-        async function detectUserRole(user) {
-            const collectionNames = ["users", "Users"];
-            for (const colName of collectionNames) {
-                try {
-                    const snap = await getDoc(doc(db, colName, user.uid));
-                    if (snap.exists()) {
-                        const data = snap.data() || {};
-                        const rawRole = (data.role || data.Role || "").toString().trim().toLowerCase();
-                        if (rawRole === "doctor") return "doctor";
-                        if (rawRole === "reception") return "reception";
-                    }
-                } catch (_) {}
-            }
-            const emailLower = (user.email || "").toLowerCase();
-            if (emailLower.includes("doctor")) return "doctor";
-            return "reception";
-        }
-
-        function setupUIForRole(ro
+                statusEl.textContent = "";
+                const code = err && err.code ? err.code : "";
+                if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-email") {
+                    errEl.textContent = "Gmail ya Password galat hai (" + code + ").";
+                } else {
+                    errEl.textContent = "Login fail (" + (code || err.message || "unknown") + ").";
+      
