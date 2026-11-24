@@ -563,4 +563,582 @@
         window.switchMainTab = function(tab) {
             const addTab = document.getElementById("addTabContent");
             const histTab = document.getElementById("historyTabContent");
-            const btnAdd = document.get
+            const btnAdd = document.getElementById("tabAddBtn");
+            const btnHist = document.getElementById("tabHistoryBtn");
+
+            if (tab === "add") {
+                addTab.classList.remove("hidden");
+                histTab.classList.add("hidden");
+                btnAdd.classList.add("active");
+                btnHist.classList.remove("active");
+            } else {
+                addTab.classList.add("hidden");
+                histTab.classList.remove("hidden");
+                btnHist.classList.add("active");
+                btnAdd.classList.remove("active");
+                renderQuickPatientList();
+            }
+        };
+
+        function encodeFirestoreVal(val) {
+            if (val === null || val === undefined) return { nullValue: null };
+            if (typeof val === "number") {
+                return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
+            }
+            if (typeof val === "boolean") return { booleanValue: val };
+            if (Array.isArray(val)) {
+                return { arrayValue: { values: val.map(encodeFirestoreVal) } };
+            }
+            if (typeof val === "object") {
+                const fields = {};
+                for (const k of Object.keys(val)) {
+                    fields[k] = encodeFirestoreVal(val[k]);
+                }
+                return { mapValue: { fields } };
+            }
+            return { stringValue: String(val) };
+        }
+
+        function decodeFirestoreVal(fVal) {
+            if (!fVal) return null;
+            if ("stringValue" in fVal) return fVal.stringValue;
+            if ("integerValue" in fVal) return Number(fVal.integerValue);
+            if ("doubleValue" in fVal) return Number(fVal.doubleValue);
+            if ("booleanValue" in fVal) return fVal.booleanValue;
+            if ("timestampValue" in fVal) return fVal.timestampValue;
+            if ("nullValue" in fVal) return null;
+            if ("arrayValue" in fVal) {
+                return (fVal.arrayValue.values || []).map(decodeFirestoreVal);
+            }
+            if ("mapValue" in fVal) {
+                const obj = {};
+                const fields = fVal.mapValue.fields || {};
+                for (const k of Object.keys(fields)) {
+                    obj[k] = decodeFirestoreVal(fields[k]);
+                }
+                return obj;
+            }
+            return null;
+        }
+
+        function parseFirestoreDoc(docObj) {
+            const out = { id: docObj.name.split("/").pop() };
+            const fields = docObj.fields || {};
+            for (const k of Object.keys(fields)) {
+                out[k] = decodeFirestoreVal(fields[k]);
+            }
+            return out;
+        }
+
+        function fsBaseUrl() {
+            return `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
+        }
+
+        async function fsGetDoc(colName, docId) {
+            const url = `${fsBaseUrl()}/${colName}/${encodeURIComponent(docId)}`;
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            if (!res.ok) {
+                return { __error: `HTTP ${res.status}` };
+            }
+            const json = await res.json();
+            return parseFirestoreDoc(json);
+        }
+
+        async function fsListCollection(colName) {
+            const url = `${fsBaseUrl()}/${colName}?pageSize=200`;
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            if (!res.ok) return [];
+            const json = await res.json();
+            return (json.documents || []).map(parseFirestoreDoc);
+        }
+
+        async function fsAddDoc(colName, dataObj) {
+            const fields = {};
+            for (const k of Object.keys(dataObj)) {
+                fields[k] = encodeFirestoreVal(dataObj[k]);
+            }
+            const res = await fetch(`${fsBaseUrl()}/${colName}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ fields })
+            });
+            if (!res.ok) {
+                const errTxt = await res.text();
+                throw new Error(`Firestore write failed (${res.status}): ${errTxt}`);
+            }
+            const json = await res.json();
+            return parseFirestoreDoc(json);
+        }
+
+        async function fsUpdateDoc(colName, docId, dataObj) {
+            const maskParams = Object.keys(dataObj).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
+            const fields = {};
+            for (const k of Object.keys(dataObj)) {
+                fields[k] = encodeFirestoreVal(dataObj[k]);
+            }
+            const url = `${fsBaseUrl()}/${colName}/${encodeURIComponent(docId)}?${maskParams}`;
+            const res = await fetch(url, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ fields })
+            });
+            if (!res.ok) {
+                const errTxt = await res.text();
+                throw new Error(`Firestore update failed (${res.status}): ${errTxt}`);
+            }
+        }
+
+        async function detectRoleRest(uid, email) {
+            const d = await fsGetDoc("Users", uid);
+            if (d && !d.__error) {
+                const r = (d.Role || d.role || "").toString().trim().toLowerCase();
+                if (r === "doctor") return "doctor";
+                if (r === "reception") return "reception";
+            }
+            return (email || "").toLowerCase().includes("doctor") ? "doctor" : "reception";
+        }
+
+        async function refreshAllData() {
+            if (!authToken || !isLoggedInSession) return;
+            try {
+                const pDocs = await fsListCollection("patients");
+                patientsCache = pDocs;
+
+                const aDocs = await fsListCollection("Appointment");
+                appointmentsCache = aDocs.sort((a, b) => (a.token || 0) - (b.token || 0));
+
+                const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
+                nextTokenCounter = maxToken + 1;
+
+                if (currentRole === "doctor") {
+                    const [vDocs, tDocs, payDocs] = await Promise.all([
+                        fsListCollection("Visits"),
+                        fsListCollection("treatment"),
+                        fsListCollection("Payment")
+                    ]);
+                    visitsCache = vDocs;
+                    treatmentsCache = tDocs;
+                    paymentsCache = payDocs;
+                } else {
+                    visitsCache = [];
+                    treatmentsCache = [];
+                    paymentsCache = [];
+                }
+
+                renderWaitingLists();
+                renderLastSeenList();
+                renderQuickPatientList();
+                if (selectedPatientId) {
+                    renderPatientHistoryById(selectedPatientId);
+                }
+            } catch (e) {
+                console.error("Sync error:", e);
+            }
+        }
+
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+            errEl.textContent = "";
+            statusEl.textContent = "Login verify ho raha hai...";
+            loginBtn.disabled = true;
+
+            try {
+                const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`;
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        returnSecureToken: true
+                    })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.idToken) {
+                    const fbErr = (data && data.error && data.error.message) || "INVALID_LOGIN_CREDENTIALS";
+                    if (fbErr.includes("INVALID") || fbErr.includes("PASSWORD") || fbErr.includes("EMAIL")) {
+                        errEl.textContent = "Gmail ya Password galat hai.";
+                    } else {
+                        errEl.textContent = "Login fail: " + fbErr;
+                    }
+                    statusEl.textContent = "";
+                    return;
+                }
+
+                authToken = data.idToken;
+                currentUid = data.localId;
+                currentEmail = data.email || email;
+
+                statusEl.textContent = "Role check ho raha hai...";
+                const role = await detectRoleRest(currentUid, currentEmail);
+
+                showDashboardView(role, currentEmail);
+                statusEl.textContent = "";
+
+                await refreshAllData();
+                if (syncTimer) clearInterval(syncTimer);
+                syncTimer = setInterval(refreshAllData, 5000);
+            } catch (err) {
+                statusEl.textContent = "";
+                errEl.textContent = "Network/Connection error: " + (err.message || "Login nahi ho paaya");
+            } finally {
+                loginBtn.disabled = false;
+            }
+        });
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            authToken = null;
+            currentUid = null;
+            currentEmail = null;
+            selectedPatientId = null;
+            if (syncTimer) clearInterval(syncTimer);
+            showLoginView();
+            document.getElementById("loginPassword").value = "";
+            statusEl.textContent = "";
+            errEl.textContent = "";
+        });
+
+        document.getElementById("addPatientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const naam = document.getElementById("pName").value.trim();
+            const mobile = document.getElementById("pMobile").value.trim();
+            const age = Number(document.getElementById("pAge").value.trim()) || 0;
+            const gender = document.getElementById("pGender").value;
+            const address = document.getElementById("pAddress").value.trim();
+            const problem = document.getElementById("pProblem").value.trim();
+
+            try {
+                const patientDoc = await fsAddDoc("patients", {
+                    Naam: naam,
+                    Mobile: mobile,
+                    Age: age,
+                    Gender: gender,
+                    Address: address,
+                    Patient: problem,
+                    Appointment: todayISO()
+                });
+
+                const tokenNumber = nextTokenCounter++;
+                await fsAddDoc("Appointment", {
+                    token: tokenNumber,
+                    status: "waiting",
+                    patientId: patientDoc.id,
+                    Naam: naam,
+                    Mobile: mobile,
+                    Age: age,
+                    Address: address,
+                    Patient: problem,
+                    visitNumber: 1,
+                    date: todayISO()
+                });
+
+                const waitingOnlyCount = appointmentsCache.filter(a => a.status === "waiting").length;
+                const banner = document.getElementById("tokenResultBox");
+                banner.style.display = "block";
+                banner.innerHTML = `Patient save ho gaya! <br><strong>${naam}</strong> ka Waiting Number: <span style="font-size:1.25rem; color:#0f766e;">#${tokenNumber}</span> (Abhi ${waitingOnlyCount} patients line mein hain).`;
+
+                document.getElementById("addPatientForm").reset();
+                await refreshAllData();
+            } catch (err) {
+                alert("Patient save karne mein error aaya: " + (err.message || err));
+            }
+        });
+
+        window.addReturningPatientToQueue = async function(patientId) {
+            const p = patientsCache.find(item => item.id === patientId);
+            if (!p) return;
+
+            const alreadyWaiting = appointmentsCache.some(a => a.patientId === patientId && a.status === "waiting");
+            if (alreadyWaiting) {
+                alert(`${p.Naam || "Patient"} pehle se waiting list mein hain.`);
+                return;
+            }
+
+            const prevVisits = appointmentsCache.filter(a => a.patientId === patientId).length;
+            const nextVisitNum = prevVisits + 1;
+            const tokenNumber = nextTokenCounter++;
+
+            await fsUpdateDoc("patients", patientId, {
+                Appointment: todayISO()
+            });
+
+            await fsAddDoc("Appointment", {
+                token: tokenNumber,
+                status: "waiting",
+                patientId: p.id,
+                Naam: p.Naam || "",
+                Mobile: p.Mobile || "",
+                Age: p.Age || 0,
+                Address: p.Address || "",
+                Patient: p.Patient || "",
+                visitNumber: nextVisitNum,
+                date: todayISO()
+            });
+
+            alert(`${p.Naam || "Patient"} ko Waiting Number #${tokenNumber} par add kar diya gaya hai.`);
+            await refreshAllData();
+        };
+
+        function renderWaitingLists() {
+            const docContainer = document.getElementById("doctorWaitingList");
+            const recContainer = document.getElementById("receptionWaitingList");
+
+            const waitingList = appointmentsCache.filter(a => a.status === "waiting");
+            document.getElementById("waitingCountDoc").textContent = waitingList.length;
+            document.getElementById("waitingCountRec").textContent = waitingList.length;
+
+            if (waitingList.length === 0) {
+                docContainer.innerHTML = `<p class="muted">Abhi waiting mein koi patient nahi hai.</p>`;
+                recContainer.innerHTML = `<p class="muted">Abhi waiting list khaali hai.</p>`;
+                return;
+            }
+
+            recContainer.innerHTML = waitingList.map((q, idx) => `
+                <div class="queue-item">
+                    <div>
+                        <span class="token-pill">#${q.token}</span>
+                        <strong>${q.Naam || "-"}</strong> (${q.Mobile || "-"})
+                        <div class="muted">Dikkat: ${q.Patient || "-"} | Aap se pehle: ${idx} patient</div>
+                    </div>
+                </div>
+            `).join("");
+
+            docContainer.innerHTML = waitingList.map((q) => `
+                <div class="queue-item">
+                    <div>
+                        <span class="token-pill">#${q.token}</span>
+                        <strong>${q.Naam || "-"}</strong> | Age: ${q.Age || "-"} | Mob: ${q.Mobile || "-"}
+                        <div class="muted">Address: ${q.Address || "-"} | Dikkat: ${q.Patient || "-"}</div>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-sm btn-blue" onclick="openPatientForDoctor('${q.patientId}')">History / Ilaj</button>
+                        <button class="btn btn-sm btn-success" onclick="markPatientSeen('${q.id}')">Dekh Liya</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        window.markPatientSeen = async function(appointmentDocId) {
+            try {
+                await fsUpdateDoc("Appointment", appointmentDocId, {
+                    status: "seen",
+                    seenDate: todayISO()
+                });
+                await refreshAllData();
+            } catch (err) {
+                alert("Status update karne mein error aaya: " + (err.message || err));
+            }
+        };
+
+        function renderLastSeenList() {
+            const container = document.getElementById("lastSeenList");
+            const seenList = appointmentsCache.filter(a => a.status === "seen").slice(0, 15);
+
+            if (seenList.length === 0) {
+                container.innerHTML = `<p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>`;
+                return;
+            }
+
+            container.innerHTML = seenList.map(s => `
+                <div class="seen-item">
+                    <div>
+                        <strong>${s.Naam || "-"}</strong> (Age: ${s.Age || "-"}, Mob: ${s.Mobile || "-"})
+                        <div class="muted">Address: ${s.Address || "-"} | Dikkat: ${s.Patient || "-"}</div>
+                    </div>
+                    <button class="btn btn-sm" onclick="openPatientForDoctor('${s.patientId}')">History</button>
+                </div>
+            `).join("");
+        }
+
+        function renderQuickPatientList() {
+            const box = document.getElementById("allPatientsQuickList");
+            if (!patientsCache.length) {
+                box.innerHTML = "";
+                return;
+            }
+            const recent = patientsCache.slice(0, 5);
+            box.innerHTML = `<div class="muted" style="margin-bottom:6px;">Recent Patients:</div>` + recent.map(p => `
+                <button class="btn btn-sm" style="background:#e2e8f0; color:#0f172a; margin:0 6px 6px 0;" onclick="selectAndShowPatient('${p.id}')">
+                    ${p.Naam || "Patient"} (${p.Mobile || ""})
+                </button>
+            `).join("");
+        }
+
+        window.searchPatientByMobile = function() {
+            const mob = document.getElementById("searchMobileInput").value.trim();
+            const resBox = document.getElementById("patientHistoryResult");
+            if (!mob) {
+                resBox.innerHTML = `<p class="muted">Kripya mobile number daalein.</p>`;
+                return;
+            }
+
+            const found = patientsCache.filter(p => String(p.Mobile || "").includes(mob));
+            if (found.length === 0) {
+                resBox.innerHTML = `<p style="color:#dc2626;">Is mobile number (${mob}) se koi patient record nahi mila.</p>`;
+                return;
+            }
+
+            if (found.length === 1) {
+                selectAndShowPatient(found[0].id);
+            } else {
+                resBox.innerHTML = found.map(p => `
+                    <div class="queue-item">
+                        <div>
+                            <strong>${p.Naam || "-"}</strong> (${p.Mobile || "-"}) - Age: ${p.Age || "-"}
+                            <div class="muted">Dikkat: ${p.Patient || "-"}</div>
+                        </div>
+                        <button class="btn btn-sm" onclick="selectAndShowPatient('${p.id}')">Open</button>
+                    </div>
+                `).join("");
+            }
+        };
+
+        window.openPatientForDoctor = function(patientId) {
+            switchMainTab("history");
+            selectAndShowPatient(patientId);
+        };
+
+        window.selectAndShowPatient = function(patientId) {
+            selectedPatientId = patientId;
+            renderPatientHistoryById(patientId);
+        };
+
+        function renderPatientHistoryById(patientId) {
+            const p = patientsCache.find(item => item.id === patientId);
+            const resBox = document.getElementById("patientHistoryResult");
+            if (!p) return;
+
+            const pVisits = visitsCache.filter(v => v.patientId === patientId);
+            const pTreatments = treatmentsCache.filter(t => t.patientId === patientId);
+            const pPayments = paymentsCache.filter(pay => pay.patientId === patientId);
+            const pAppts = appointmentsCache.filter(a => a.patientId === patientId);
+
+            const totalVisits = Math.max(1, pVisits.length, pAppts.length);
+            const lastVisit = pVisits.length ? pVisits[pVisits.length - 1] : null;
+            const lastVisitDateStr = (lastVisit && lastVisit.visitDate) || p.Appointment || "-";
+            const nextDateStr = (lastVisit && lastVisit.nextDate) || "-";
+
+            document.getElementById("selectedPatientBanner").innerHTML =
+                `Selected Patient: <strong>${p.Naam || "-"}</strong> (${p.Mobile || "-"}) | Total Visits: <strong>${totalVisits}</strong>`;
+
+            if (lastVisitDateStr && lastVisitDateStr !== "-") {
+                document.getElementById("lastVisitDateInput").value = lastVisitDateStr;
+            }
+            if (nextDateStr && nextDateStr !== "-") {
+                document.getElementById("nextDateInput").value = nextDateStr;
+            }
+
+            const visitsHTML = pVisits.length === 0
+                ? `<p class="muted">Abhi is patient ki koi visit treatment entry nahi dali gayi hai.</p>`
+                : pVisits.map((v, index) => {
+                    const trItem = pTreatments.find(t => t.visitIndex === index + 1);
+                    const payItem = pPayments.find(pay => pay.visitIndex === index + 1);
+                    return `
+                        <div class="visit-card">
+                            <div class="visit-header">Visit #${index + 1} — Tarikh: ${v.visitDate || "-"}</div>
+                            <div><strong>Kya Ilaaj Kiya:</strong> ${v.treatment || "-"}</div>
+                            <div><strong>Kya Cheez Di Gayi:</strong> ${(trItem && trItem.itemsGiven) || v.itemsGiven || "-"}</div>
+                            <div><strong>Kitna Bill Bana:</strong> ₹${(payItem && payItem.amount) ?? v.billAmount ?? 0}</div>
+                            <div><strong>Next Date Di Gayi:</strong> ${v.nextDate || "-"}</div>
+                        </div>
+                    `;
+                }).join("");
+
+            resBox.innerHTML = `
+                <div class="patient-summary">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <h4 style="color:#0f766e; font-size:1.05rem;">${p.Naam || "-"} (Age: ${p.Age || "-"})</h4>
+                        <button class="btn btn-sm btn-success" onclick="addReturningPatientToQueue('${p.id}')">+ Waiting List Mein Dalein</button>
+                    </div>
+                    <p style="margin-top:6px;"><strong>Mobile:</strong> ${p.Mobile || "-"} | <strong>Address:</strong> ${p.Address || "-"}</p>
+                    <p><strong>Dikkat / Problem:</strong> ${p.Patient || "-"}</p>
+                    <p><strong>Kitni Baar Aaya (Total Visits):</strong> ${totalVisits}</p>
+                    <p><strong>Last Visit Date:</strong> ${lastVisitDateStr} | <strong>Next Appointment Date:</strong> ${nextDateStr}</p>
+                </div>
+                <h4 style="margin-bottom:8px; color:#1e293b;">Visit-Wise Poori History:</h4>
+                ${visitsHTML}
+            `;
+        }
+
+        document.getElementById("visitUpdateForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (currentRole !== "doctor") {
+                alert("Sirf Doctor visit/bill/next date update kar sakte hain.");
+                return;
+            }
+            if (!selectedPatientId) {
+                alert("Pehle koi patient select karein.");
+                return;
+            }
+
+            const p = patientsCache.find(item => item.id === selectedPatientId);
+            if (!p) return;
+
+            const visitDate = document.getElementById("visitDate").value;
+            const treatment = document.getElementById("visitTreatment").value.trim();
+            const itemsGiven = document.getElementById("visitItems").value.trim();
+            const billAmount = Number(document.getElementById("visitBill").value || 0);
+            const lastVisitDate = document.getElementById("lastVisitDateInput").value || visitDate;
+            const nextDate = document.getElementById("nextDateInput").value;
+
+            const existingVisits = visitsCache.filter(v => v.patientId === selectedPatientId);
+            const visitIndex = existingVisits.length + 1;
+
+            try {
+                await fsAddDoc("Visits", {
+                    patientId: selectedPatientId,
+                    visitIndex,
+                    visitDate,
+                    lastVisitDate,
+                    nextDate,
+                    treatment,
+                    itemsGiven,
+                    billAmount
+                });
+
+                await fsAddDoc("treatment", {
+                    patientId: selectedPatientId,
+                    visitIndex,
+                    date: visitDate,
+                    treatment,
+                    itemsGiven
+                });
+
+                await fsAddDoc("Payment", {
+                    patientId: selectedPatientId,
+                    visitIndex,
+                    date: visitDate,
+                    amount: billAmount
+                });
+
+                if (nextDate) {
+                    await fsUpdateDoc("patients", selectedPatientId, {
+                        Appointment: nextDate
+                    });
+                }
+
+                document.getElementById("visitTreatment").value = "";
+                document.getElementById("visitItems").value = "";
+                document.getElementById("visitBill").value = "";
+                alert("Visit record, bill aur next appointment date save ho gayi hai!");
+                await refreshAllData();
+            } catch (err) {
+                alert("Save karne mein error aaya: " + (err.message || err));
+            }
+        });
+    </script>
+</body>
+</html>
