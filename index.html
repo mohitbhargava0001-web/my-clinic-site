@@ -3,130 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Health Care Centre</title>
-    <!-- Google Fonts for stylish Hindi & English typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Tiro+Devanagari+Hindi&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <title>Family Health Care Centre Management Software</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
         }
 
         body {
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            font-family: 'Poppins', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             padding: 20px;
-            overflow: hidden;
-        }
-
-        .welcome-card {
-            background: rgba(255, 255, 255, 0.96);
-            padding: 55px 40px;
-            border-radius: 24px;
-            max-width: 850px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
-            border: 3px solid #d4af37;
-            position: relative;
-            animation: fadeInUp 1.2s ease-out;
-        }
-
-        .medical-icon {
-            font-size: 3.5rem;
-            color: #0d9488;
-            margin-bottom: 15px;
-            display: inline-block;
-            animation: pulse 2s infinite;
-        }
-
-        .clinic-name {
-            font-family: 'Cinzel Decorative', cursive;
-            font-size: 3.2rem;
-            font-weight: 900;
-            background: linear-gradient(90deg, #0f766e, #0284c7, #0f766e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-            line-height: 1.2;
-            text-shadow: 2px 4px 10px rgba(15, 118, 110, 0.15);
-        }
-
-        .welcome-hindi {
-            font-family: 'Tiro Devanagari Hindi', serif;
-            font-size: 2.3rem;
             color: #1e293b;
-            font-weight: 600;
-            margin-bottom: 25px;
         }
 
-        .divider {
-            height: 3px;
-            width: 140px;
-            background: linear-gradient(90deg, transparent, #d4af37, transparent);
-            margin: 0 auto 28px auto;
+        /* Top Header */
+        .top-header {
+            width: 100%;
+            max-width: 1100px;
+            text-align: center;
+            padding: 24px 16px;
+            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #ffffff;
         }
 
-        .coming-soon {
-            font-family: 'Tiro Devanagari Hindi', serif;
-            font-size: 1.85rem;
+        .top-header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .top-header p {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            margin-top: 4px;
+        }
+
+        /* Login Card */
+        .login-box {
+            background: #ffffff;
+            width: 100%;
+            max-width: 420px;
+            padding: 36px 28px;
+            border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+            margin-top: 10px;
+        }
+
+        .login-box h2 {
+            text-align: center;
             color: #0f766e;
-            background: #f0fdfa;
-            padding: 16px 32px;
-            border-radius: 50px;
-            display: inline-block;
-            border: 1.5px dashed #0d9488;
-            box-shadow: 0 6px 18px rgba(13, 148, 136, 0.12);
+            font-size: 1.35rem;
+            margin-bottom: 6px;
         }
 
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .login-subtitle {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 24px;
         }
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #0f766e;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            background: #0f766e;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 6px;
+        }
+
+        .btn-login:hover {
+            background: #115e59;
+        }
+
+        .error-msg {
+            color: #dc2626;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 12px;
+            display: none;
+        }
+
+        /* Dashboard Section (Hidden until login) */
+        .dashboard {
+            display: none;
+            width: 100%;
+            max-width: 1100px;
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        }
+
+        .dash-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .dash-topbar h2 {
+            color: #0f766e;
+            font-size: 1.25rem;
+        }
+
+        .btn-logout {
+            background: #ef4444;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .placeholder-box {
+            background: #ffffff;
+            padding: 30px 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1.5px dashed #cbd5e1;
+            color: #475569;
         }
 
         @media (max-width: 600px) {
-            .welcome-card {
-                padding: 35px 20px;
+            .top-header h1 {
+                font-size: 1.35rem;
             }
-            .clinic-name {
-                font-size: 2rem;
-            }
-            .welcome-hindi {
-                font-size: 1.65rem;
-            }
-            .coming-soon {
-                font-size: 1.3rem;
-                padding: 12px 20px;
+            .login-box {
+                padding: 28px 20px;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="welcome-card">
-        <div class="medical-icon">✚</div>
-        <h1 class="clinic-name">Family Health Care Centre</h1>
-        <p class="welcome-hindi">में आपका स्वागत है</p>
-        <div class="divider"></div>
-        <p class="coming-soon">✨ जल्द ही हम आपकी सेवाओं में उपलब्ध होंगे ✨</p>
+    <!-- Main Heading -->
+    <header class="top-header">
+        <h1>Family Health Care Centre Management Software</h1>
+        <p>Authorized Clinic Staff Access Only</p>
+    </header>
+
+    <!-- Login Form (Only Gmail & Password, No Sign-Up) -->
+    <div class="login-box" id="loginSection">
+        <h2>Clinic Login</h2>
+        <p class="login-subtitle">Apne registered Gmail aur Password se login karein</p>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Gmail ID</label>
+                <input type="email" id="email" placeholder="example@gmail.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn-login">Login</button>
+            <p class="error-msg" id="errorMsg">Galat Gmail ya Password. Dobara koshish karein.</p>
+        </form>
     </div>
+
+    <!-- Clinic Dashboard (Opens after Login) -->
+    <div class="dashboard" id="dashboardSection">
+        <div class="dash-topbar">
+            <h2>Patient Management Dashboard</h2>
+            <button class="btn-logout" onclick="logoutUser()">Logout</button>
+        </div>
+
+        <div class="placeholder-box">
+            <h3>Swagat Hai! Login Safal Raha.</h3>
+            <p style="margin-top: 8px;">Agle step mein hum yahan <strong>Naya Mareez Register karne</strong>, <strong>Mobile Number se Search karne</strong>, aur <strong>Visit History / Appointment</strong> ke features jodenge.</p>
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const loginSection = document.getElementById('loginSection');
+        const dashboardSection = document.getElementById('dashboardSection');
+        const errorMsg = document.getElementById('errorMsg');
+
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (email && password) {
+                errorMsg.style.display = 'none';
+                loginSection.style.display = 'none';
+                dashboardSection.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        });
+
+        function logoutUser() {
+            dashboardSection.style.display = 'none';
+            loginSection.style.display = 'block';
+            loginForm.reset();
+        }
+    </script>
 
 </body>
 </html>
