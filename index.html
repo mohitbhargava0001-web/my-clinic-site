@@ -354,7 +354,7 @@
         <h2>Clinic Login</h2>
         <p class="login-sub">Apne registered Gmail aur Password se login karein</p>
 
-        <form id="loginForm" action="javascript:void(0);">
+        <form id="loginForm">
             <div class="form-group">
                 <label for="loginEmail">Gmail ID</label>
                 <input type="email" id="loginEmail" placeholder="doctor@gmail.com ya reception@gmail.com" required>
@@ -388,7 +388,7 @@
             <div class="grid-2">
                 <div class="card">
                     <h3 id="addFormHeading">Add New Patient</h3>
-                    <form id="addPatientForm" action="javascript:void(0);">
+                    <form id="addPatientForm">
                         <div class="form-group">
                             <label>Patient Name (Mareez ka Naam) *</label>
                             <input type="text" id="pName" required placeholder="Poora naam likhein">
@@ -462,7 +462,7 @@
                     <h3>Doctor: Visit Treatment, Medicine/Item, Bill & Next Date</h3>
                     <p class="muted" id="selectedPatientBanner" style="margin-bottom: 12px;">Pehle koi patient select karein.</p>
 
-                    <form id="visitUpdateForm" action="javascript:void(0);">
+                    <form id="visitUpdateForm">
                         <div class="form-group">
                             <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
                             <input type="date" id="visitDate" required>
@@ -494,89 +494,77 @@
         </div>
     </div>
 
-    <script type="module">
+    <script>
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDF4uLFVQqujkp6LgoSs29_CN0FeSC65qY",
+            authDomain: "family-health-care-centre.firebaseapp.com",
+            projectId: "family-health-care-centre"
+        };
+
         const statusEl = document.getElementById("loginStatus");
         const errEl = document.getElementById("loginError");
         const loginForm = document.getElementById("loginForm");
         const loginBtn = document.getElementById("loginBtn");
 
-        window.addEventListener("error", (ev) => {
-            errEl.textContent = "Page Error: " + (ev.message || "Script error");
-        });
-        window.addEventListener("unhandledrejection", (ev) => {
-            const reason = ev.reason || {};
-            errEl.textContent = "Error: " + (reason.code || reason.message || String(reason));
-        });
-
-        loginForm.addEventListener("submit", (e) => {
-            e.preventDefault();
-            errEl.textContent = "";
-            statusEl.textContent = "Firebase connect ho raha hai...";
-        });
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-        import {
-            getAuth,
-            signInWithEmailAndPassword,
-            signOut,
-            onAuthStateChanged
-        } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-        import {
-            getFirestore,
-            collection,
-            doc,
-            getDoc,
-            addDoc,
-            updateDoc,
-            deleteDoc,
-            query,
-            orderBy,
-            onSnapshot,
-            serverTimestamp
-        } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDF4uLFVQqujkp6LgoSs29_CN0FeSC65qY",
-            authDomain: "family-health-care-centre.firebaseapp.com",
-            projectId: "family-health-care-centre",
-            storageBucket: "family-health-care-centre.firebasestorage.app",
-            messagingSenderId: "432039802220",
-            appId: "1:432039802220:web:7b5b3a3bb3efb7456e6f49"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        statusEl.textContent = "";
-
-        let currentUser = null;
+        let authToken = null;
+        let currentUid = null;
+        let currentEmail = null;
         let currentRole = "reception";
         let patientsCache = [];
         let queueCache = [];
         let lastSeenCache = [];
         let selectedPatientId = null;
         let nextTokenCounter = 1;
+        let syncTimer = null;
 
         const todayISO = () => new Date().toISOString().split("T")[0];
         document.getElementById("visitDate").value = todayISO();
 
-        loginForm.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const email = document.getElementById("loginEmail").value.trim();
-            const password = document.getElementById("loginPassword").value;
-            errEl.textContent = "";
-            statusEl.textContent = "Login jaari hai...";
-            loginBtn.disabled = true;
+        function setupUIForRole(role, email) {
+            currentRole = role;
+            document.getElementById("loggedUserEmail").textContent = `Logged in: ${email} | Role: ${role.toUpperCase()}`;
+            if (role === "doctor") {
+                document.getElementById("roleTitle").textContent = "Doctor Dashboard";
+                document.getElementById("roleBadge").textContent = "DOCTOR";
+                document.getElementById("addFormHeading").textContent = "Add Patient (Doctor)";
+                document.getElementById("doctorSidePanel").classList.remove("hidden");
+                document.getElementById("receptionSidePanel").classList.add("hidden");
+                document.getElementById("doctorTreatmentCard").classList.remove("hidden");
+            } else {
+                document.getElementById("roleTitle").textContent = "Reception Dashboard";
+                document.getElementById("roleBadge").textContent = "RECEPTION";
+                document.getElementById("addFormHeading").textContent = "Add New Patient";
+                document.getElementById("receptionSidePanel").classList.remove("hidden");
+                document.getElementById("doctorSidePanel").classList.add("hidden");
+                document.getElementById("doctorTreatmentCard").classList.add("hidden");
+            }
+        }
 
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                statusEl.textContent = "Login safal! Dashboard khul raha hai...";
-            } catch (err) {
-                statusEl.textContent = "";
-                const code = err && err.code ? err.code : "";
-                if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-email") {
-                    errEl.textContent = "Gmail ya Password galat hai (" + code + ").";
-                } else {
-                    errEl.textContent = "Login fail (" + (code || err.message || "unknown") + ").";
-      
+        window.switchMainTab = function(tab) {
+            const addTab = document.getElementById("addTabContent");
+            const histTab = document.getElementById("historyTabContent");
+            const btnAdd = document.getElementById("tabAddBtn");
+            const btnHist = document.getElementById("tabHistoryBtn");
+
+            if (tab === "add") {
+                addTab.classList.remove("hidden");
+                histTab.classList.add("hidden");
+                btnAdd.classList.add("active");
+                btnHist.classList.remove("active");
+            } else {
+                addTab.classList.add("hidden");
+                histTab.classList.remove("hidden");
+                btnHist.classList.add("active");
+                btnAdd.classList.remove("active");
+                renderQuickPatientList();
+            }
+        };
+
+        function encodeFirestoreVal(val) {
+            if (val === null || val === undefined) return { nullValue: null };
+            if (typeof val === "number") {
+                return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
+            }
+            if (typeof val === "boolean") return { booleanValue: val };
+            if (Array.isArray(val)) {
+                return { arrayValue: { values: val.map(encodeFir
