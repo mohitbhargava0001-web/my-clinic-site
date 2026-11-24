@@ -3,9 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Health Care Centre Management Software management officerdoctor Mohit Bhargav</title>
+    <title>Family Health Care Centre Management Software</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --accent: #0284c7;
+            --bg-dark: #0f2027;
+            --bg-mid: #203a43;
+            --bg-light: #f8fafc;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #cbd5e1;
+            --danger: #dc2626;
+            --success: #15803d;
+            --warning-bg: #fef3c7;
+            --warning-text: #92400e;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,242 +31,921 @@
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid), #2c5364);
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            color: #1e293b;
+            padding: 16px;
+            color: var(--text);
         }
 
-        /* Top Header */
         .top-header {
             width: 100%;
-            max-width: 1100px;
+            max-width: 1200px;
             text-align: center;
-            padding: 24px 16px;
-            margin-bottom: 24px;
-            background: rgba(255, 255, 255, 0.1);
+            padding: 20px 16px;
+            margin-bottom: 18px;
+            background: rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(8px);
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ffffff;
         }
 
         .top-header h1 {
-            font-size: 1.75rem;
+            font-size: 1.65rem;
             font-weight: 700;
-            letter-spacing: 0.5px;
         }
 
         .top-header p {
-            font-size: 0.9rem;
-            color: #cbd5e1;
+            font-size: 0.85rem;
+            color: #e2e8f0;
             margin-top: 4px;
         }
 
-        /* Login Card */
+        /* Login Box */
         .login-box {
             background: #ffffff;
             width: 100%;
             max-width: 420px;
-            padding: 36px 28px;
+            padding: 32px 24px;
             border-radius: 18px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-            margin-top: 10px;
+            margin-top: 12px;
         }
 
         .login-box h2 {
             text-align: center;
-            color: #0f766e;
-            font-size: 1.35rem;
+            color: var(--primary);
             margin-bottom: 6px;
         }
 
-        .login-subtitle {
+        .login-sub {
             text-align: center;
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-bottom: 24px;
+            font-size: 0.84rem;
+            color: var(--muted);
+            margin-bottom: 22px;
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 14px;
         }
 
         .form-group label {
             display: block;
-            font-size: 0.88rem;
+            font-size: 0.85rem;
             font-weight: 600;
+            margin-bottom: 5px;
             color: #334155;
-            margin-bottom: 6px;
         }
 
-        .form-group input {
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
             width: 100%;
-            padding: 12px 14px;
-            border: 1.5px solid #cbd5e1;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
             border-radius: 10px;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             outline: none;
-            transition: border-color 0.2s;
+            background: #fff;
         }
 
-        .form-group input:focus {
-            border-color: #0f766e;
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
         }
 
-        .btn-login {
-            width: 100%;
-            padding: 13px;
-            background: #0f766e;
-            color: #ffffff;
+        .btn {
+            padding: 10px 16px;
             border: none;
             border-radius: 10px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
-            margin-top: 6px;
+            transition: 0.2s;
         }
 
-        .btn-login:hover {
-            background: #115e59;
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            width: 100%;
+            padding: 12px;
         }
 
-        .error-msg {
-            color: #dc2626;
-            font-size: 0.85rem;
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-sm {
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            border-radius: 8px;
+            color: #fff;
+            background: var(--primary);
+        }
+
+        .btn-blue {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .error-text {
+            color: var(--danger);
+            font-size: 0.84rem;
             text-align: center;
-            margin-top: 12px;
-            display: none;
+            margin-top: 10px;
+            min-height: 20px;
         }
 
-        /* Dashboard Section (Hidden until login) */
+        /* Dashboard */
         .dashboard {
             display: none;
             width: 100%;
-            max-width: 1100px;
-            background: #f8fafc;
+            max-width: 1200px;
+            background: var(--bg-light);
             border-radius: 18px;
-            padding: 24px;
+            padding: 20px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
         }
 
-        .dash-topbar {
+        .dash-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 12px;
-            padding-bottom: 16px;
+            padding-bottom: 14px;
             border-bottom: 1px solid #e2e8f0;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
-        .dash-topbar h2 {
-            color: #0f766e;
-            font-size: 1.25rem;
+        .role-badge {
+            display: inline-block;
+            background: #ccfbf1;
+            color: var(--primary-dark);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-left: 8px;
         }
 
-        .btn-logout {
-            background: #ef4444;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.88rem;
+        .main-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1.5px solid var(--primary);
+            background: #fff;
+            color: var(--primary);
             font-weight: 600;
             cursor: pointer;
         }
 
-        .placeholder-box {
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
             background: #ffffff;
-            padding: 30px 20px;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card h3 {
+            color: var(--primary);
+            font-size: 1.08rem;
+            margin-bottom: 12px;
+        }
+
+        .token-banner {
+            display: none;
+            margin-top: 14px;
+            padding: 14px;
             border-radius: 12px;
-            text-align: center;
-            border: 1.5px dashed #cbd5e1;
-            color: #475569;
+            background: #ecfdf5;
+            border: 1.5px solid #10b981;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .queue-item, .seen-item {
+            padding: 12px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .token-pill {
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .search-row input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.92rem;
+        }
+
+        .patient-summary {
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .visit-card {
+            background: #ffffff;
+            border-left: 4px solid var(--primary);
+            border-top: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+        .visit-header {
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        .hidden {
+            display: none !important;
         }
 
         @media (max-width: 600px) {
             .top-header h1 {
-                font-size: 1.35rem;
+                font-size: 1.25rem;
             }
-            .login-box {
-                padding: 28px 20px;
+            .dashboard {
+                padding: 14px;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- Main Heading -->
     <header class="top-header">
         <h1>Family Health Care Centre Management Software</h1>
-        <p>Authorized Clinic Staff Access Only</p>
+        <p id="headerSubtitle">Authorized Clinic Login</p>
     </header>
 
-    <!-- Login Form (Only Gmail & Password, No Sign-Up) -->
+    <!-- LOGIN SECTION (Gmail + Password Only) -->
     <div class="login-box" id="loginSection">
         <h2>Clinic Login</h2>
-        <p class="login-subtitle">Apne registered Gmail aur Password se login karein</p>
+        <p class="login-sub">Apne registered Gmail aur Password se login karein</p>
 
         <form id="loginForm">
             <div class="form-group">
-                <label for="email">Gmail ID</label>
-                <input type="email" id="email" placeholder="example@gmail.com" required>
+                <label for="loginEmail">Gmail ID</label>
+                <input type="email" id="loginEmail" placeholder="doctor@gmail.com ya reception@gmail.com" required>
             </div>
-
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="••••••••" required>
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="••••••••" required>
             </div>
-
-            <button type="submit" class="btn-login">Login</button>
-            <p class="error-msg" id="errorMsg">Galat Gmail ya Password. Dobara koshish karein.</p>
+            <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
+            <p class="error-text" id="loginError"></p>
         </form>
     </div>
 
-    <!-- Clinic Dashboard (Opens after Login) -->
+    <!-- DASHBOARD SECTION -->
     <div class="dashboard" id="dashboardSection">
-        <div class="dash-topbar">
-            <h2>Patient Management Dashboard</h2>
-            <button class="btn-logout" onclick="logoutUser()">Logout</button>
+        <div class="dash-top">
+            <div>
+                <span id="roleTitle" style="font-weight:700; font-size:1.15rem; color:#0f766e;">Dashboard</span>
+                <span class="role-badge" id="roleBadge">ROLE</span>
+                <div class="muted" id="loggedUserEmail"></div>
+            </div>
+            <button class="btn btn-danger btn-sm" id="logoutBtn">Logout</button>
         </div>
 
-        <div class="placeholder-box">
-            <h3>Swagat Hai! Login Safal Raha.</h3>
-            <p style="margin-top: 8px;">Agle step mein hum yahan <strong>Naya Mareez Register karne</strong>, <strong>Mobile Number se Search karne</strong>, aur <strong>Visit History / Appointment</strong> ke features jodenge.</p>
+        <!-- 2 MAIN TABS (Both Reception & Doctor have Add Patient & Patient History) -->
+        <div class="main-tabs">
+            <button class="tab-btn active" id="tabAddBtn" onclick="switchMainTab('add')">Add New Patient</button>
+            <button class="tab-btn" id="tabHistoryBtn" onclick="switchMainTab('history')">Patient History</button>
+        </div>
+
+        <!-- TAB 1: ADD PATIENT -->
+        <div id="addTabContent">
+            <div class="grid-2">
+                <!-- Patient Registration Form -->
+                <div class="card">
+                    <h3 id="addFormHeading">Add New Patient</h3>
+                    <form id="addPatientForm">
+                        <div class="form-group">
+                            <label>Patient Name (Mareez ka Naam) *</label>
+                            <input type="text" id="pName" required placeholder="Poora naam likhein">
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile Number *</label>
+                            <input type="tel" id="pMobile" required placeholder="10 digit mobile number">
+                        </div>
+                        <div class="form-group">
+                            <label>Age (Umra) *</label>
+                            <input type="number" id="pAge" required min="1" max="120" placeholder="Saal mein umra">
+                        </div>
+                        <div class="form-group">
+                            <label>Address (Pata) *</label>
+                            <input type="text" id="pAddress" required placeholder="Gaon / Mohalla / Shehar">
+                        </div>
+                        <div class="form-group">
+                            <label>Kya Dikkat Hai (Problem / Symptoms) *</label>
+                            <textarea id="pProblem" rows="3" required placeholder="Mareez ki samasya ya lakshan likhein"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="savePatientBtn">Save & Add to Waiting</button>
+                    </form>
+
+                    <div class="token-banner" id="tokenResultBox"></div>
+                </div>
+
+                <!-- Doctor Side Panel: Waiting List + Last Seen Patients -->
+                <div id="doctorSidePanel" class="hidden">
+                    <div class="card" style="margin-bottom: 18px;">
+                        <h3>Waiting List (<span id="waitingCountDoc">0</span> Patients)</h3>
+                        <div id="doctorWaitingList">
+                            <p class="muted">Abhi waiting mein koi patient nahi hai.</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Last Seen Patients (Jo Dekhe Gaye)</h3>
+                        <div id="lastSeenList">
+                            <p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reception Side Panel: Current Waiting Queue Info -->
+                <div id="receptionSidePanel" class="hidden">
+                    <div class="card">
+                        <h3>Current Waiting List (<span id="waitingCountRec">0</span> Patients)</h3>
+                        <p class="muted" style="margin-bottom: 10px;">Mareez ko unka waiting number yahan se batayein:</p>
+                        <div id="receptionWaitingList">
+                            <p class="muted">Abhi waiting list khaali hai.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: PATIENT HISTORY -->
+        <div id="historyTabContent" class="hidden">
+            <div class="grid-2">
+                <!-- Search & Patient Details + Visit History -->
+                <div class="card">
+                    <h3>Patient History (Mobile Number Se Search Karein)</h3>
+                    <div class="search-row">
+                        <input type="tel" id="searchMobileInput" placeholder="Mobile number daalein...">
+                        <button class="btn btn-sm btn-blue" onclick="searchPatientByMobile()">Search</button>
+                    </div>
+
+                    <div id="allPatientsQuickList" style="margin-bottom: 12px;"></div>
+                    <div id="patientHistoryResult">
+                        <p class="muted">Kisi patient ka mobile number search karein ya neeche list se chunein.</p>
+                    </div>
+                </div>
+
+                <!-- Doctor Visit / Treatment / Bill / Next Date Form -->
+                <div class="card" id="doctorTreatmentCard">
+                    <h3>Doctor: Visit Treatment, Medicine/Item, Bill & Next Date</h3>
+                    <p class="muted" id="selectedPatientBanner" style="margin-bottom: 12px;">Pehle koi patient select karein.</p>
+
+                    <form id="visitUpdateForm">
+                        <div class="form-group">
+                            <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
+                            <input type="date" id="visitDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Kya Ilaaj Kiya (Treatment) *</label>
+                            <textarea id="visitTreatment" rows="2" required placeholder="Kiye gaye ilaaj / therapy ki detail"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Kya Cheez Di Gayi (Medicine / Item / Kit)</label>
+                            <input type="text" id="visitItems" placeholder="Jo cheez/dawa/kit patient ko di gayi">
+                        </div>
+                        <div class="form-group">
+                            <label>Kitna Bill Bana (Bill Amount ₹) *</label>
+                            <input type="number" id="visitBill" min="0" required placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Visit Date (Pichhli Tarikh)</label>
+                            <input type="date" id="lastVisitDateInput">
+                        </div>
+                        <div class="form-group">
+                            <label>Next Appointment Date (Agli Tarikh) *</label>
+                            <input type="date" id="nextDateInput" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="saveVisitBtn">Save Visit & Update Dates</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        const loginForm = document.getElementById('loginForm');
-        const loginSection = document.getElementById('loginSection');
-        const dashboardSection = document.getElementById('dashboardSection');
-        const errorMsg = document.getElementById('errorMsg');
+    <!-- FIREBASE SDK (Modular v11) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+        import {
+            getAuth,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+        import {
+            getFirestore,
+            collection,
+            doc,
+            getDoc,
+            getDocs,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            query,
+            orderBy,
+            onSnapshot,
+            serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
-        loginForm.addEventListener('submit', function(e) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyDF4uLFVQqujkp6LgoSs29_CN0FeSC65qY",
+            authDomain: "family-health-care-centre.firebaseapp.com",
+            projectId: "family-health-care-centre",
+            storageBucket: "family-health-care-centre.firebasestorage.app",
+            messagingSenderId: "432039802220",
+            appId: "1:432039802220:web:7b5b3a3bb3efb7456e6f49"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let currentRole = "reception"; // "doctor" or "reception"
+        let patientsCache = [];
+        let queueCache = [];
+        let lastSeenCache = [];
+        let selectedPatientId = null;
+        let nextTokenCounter = 1;
+
+        const todayISO = () => new Date().toISOString().split("T")[0];
+        document.getElementById("visitDate").value = todayISO();
+
+        // Login Handler
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
             e.preventDefault();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value.trim();
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+            const errEl = document.getElementById("loginError");
+            errEl.textContent = "";
 
-            if (email && password) {
-                errorMsg.style.display = 'none';
-                loginSection.style.display = 'none';
-                dashboardSection.style.display = 'block';
-            } else {
-                errorMsg.style.display = 'block';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (err) {
+                errEl.textContent = "Login fail hua: Gmail ya Password galat hai.";
             }
         });
 
-        function logoutUser() {
-            dashboardSection.style.display = 'none';
-            loginSection.style.display = 'block';
-            loginForm.reset();
-        }
-    </script>
+        // Logout Handler
+        document.getElementById("logoutBtn").addEventListener("click", async () => {
+            await signOut(auth);
+        });
 
+        // Auth State Listener
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                currentRole = await detectUserRole(user);
+                setupUIForRole(currentRole, user.email);
+                document.getElementById("loginSection").classList.add("hidden");
+                document.getElementById("dashboardSection").style.display = "block";
+                startRealtimeListeners();
+            } else {
+                currentUser = null;
+                document.getElementById("dashboardSection").style.display = "none";
+                document.getElementById("loginSection").classList.remove("hidden");
+            }
+        });
+
+        async function detectUserRole(user) {
+            try {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists() && userDoc.data().role) {
+                    return userDoc.data().role.toLowerCase() === "doctor" ? "doctor" : "reception";
+                }
+            } catch (_) {}
+            return user.email.toLowerCase().includes("doctor") ? "doctor" : "reception";
+        }
+
+        function setupUIForRole(role, email) {
+            document.getElementById("loggedUserEmail").textContent = `Logged in: ${email}`;
+            if (role === "doctor") {
+                document.getElementById("roleTitle").textContent = "Doctor Dashboard";
+                document.getElementById("roleBadge").textContent = "DOCTOR";
+                document.getElementById("addFormHeading").textContent = "Add Patient (Doctor)";
+                document.getElementById("doctorSidePanel").classList.remove("hidden");
+                document.getElementById("receptionSidePanel").classList.add("hidden");
+                document.getElementById("doctorTreatmentCard").classList.remove("hidden");
+            } else {
+                document.getElementById("roleTitle").textContent = "Reception Dashboard";
+                document.getElementById("roleBadge").textContent = "RECEPTION";
+                document.getElementById("addFormHeading").textContent = "Add New Patient";
+                document.getElementById("receptionSidePanel").classList.remove("hidden");
+                document.getElementById("doctorSidePanel").classList.add("hidden");
+                document.getElementById("doctorTreatmentCard").classList.add("hidden");
+            }
+        }
+
+        window.switchMainTab = function(tab) {
+            const addTab = document.getElementById("addTabContent");
+            const histTab = document.getElementById("historyTabContent");
+            const btnAdd = document.getElementById("tabAddBtn");
+            const btnHist = document.getElementById("tabHistoryBtn");
+
+            if (tab === "add") {
+                addTab.classList.remove("hidden");
+                histTab.classList.add("hidden");
+                btnAdd.classList.add("active");
+                btnHist.classList.remove("active");
+            } else {
+                addTab.classList.add("hidden");
+                histTab.classList.remove("hidden");
+                btnHist.classList.add("active");
+                btnAdd.classList.remove("active");
+                renderQuickPatientList();
+            }
+        };
+
+        function startRealtimeListeners() {
+            onSnapshot(query(collection(db, "patients"), orderBy("createdAt", "desc")), (snap) => {
+                patientsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderQuickPatientList();
+                if (selectedPatientId) {
+                    renderPatientHistoryById(selectedPatientId);
+                }
+            });
+
+            onSnapshot(query(collection(db, "waitingQueue"), orderBy("token", "asc")), (snap) => {
+                queueCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const maxToken = queueCache.reduce((m, item) => Math.max(m, item.token || 0), 0);
+                nextTokenCounter = maxToken + 1;
+                renderWaitingLists();
+            });
+
+            onSnapshot(query(collection(db, "lastSeen"), orderBy("seenAt", "desc")), (snap) => {
+                lastSeenCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).slice(0, 15);
+                renderLastSeenList();
+            });
+        }
+
+        // Add New Patient
+        document.getElementById("addPatientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const name = document.getElementById("pName").value.trim();
+            const mobile = document.getElementById("pMobile").value.trim();
+            const age = document.getElementById("pAge").value.trim();
+            const address = document.getElementById("pAddress").value.trim();
+            const problem = document.getElementById("pProblem").value.trim();
+
+            const patientRef = await addDoc(collection(db, "patients"), {
+                name,
+                mobile,
+                age,
+                address,
+                problem,
+                visitCount: 1,
+                lastVisitDate: todayISO(),
+                nextAppointmentDate: "",
+                visits: [],
+                createdAt: serverTimestamp()
+            });
+
+            const tokenNumber = nextTokenCounter++;
+            await addDoc(collection(db, "waitingQueue"), {
+                token: tokenNumber,
+                patientId: patientRef.id,
+                name,
+                mobile,
+                age,
+                address,
+                problem,
+                visitNumber: 1,
+                addedBy: currentRole,
+                createdAt: serverTimestamp()
+            });
+
+            const banner = document.getElementById("tokenResultBox");
+            banner.style.display = "block";
+            banner.innerHTML = `Patient save ho gaya! <br><strong>${name}</strong> ka Waiting Number: <span style="font-size:1.25rem; color:#0f766e;">#${tokenNumber}</span> (Abhi ${Math.max(0, queueCache.length)} patients line mein hain).`;
+
+            document.getElementById("addPatientForm").reset();
+        });
+
+        // Add returning patient to waiting list
+        window.addReturningPatientToQueue = async function(patientId) {
+            const p = patientsCache.find(item => item.id === patientId);
+            if (!p) return;
+
+            const alreadyWaiting = queueCache.some(q => q.patientId === patientId);
+            if (alreadyWaiting) {
+                alert(`${p.name} pehle se waiting list mein hain.`);
+                return;
+            }
+
+            const newVisitCount = (p.visitCount || 0) + 1;
+            const tokenNumber = nextTokenCounter++;
+
+            await updateDoc(doc(db, "patients", patientId), {
+                visitCount: newVisitCount,
+                lastVisitDate: todayISO()
+            });
+
+            await addDoc(collection(db, "waitingQueue"), {
+                token: tokenNumber,
+                patientId: p.id,
+                name: p.name,
+                mobile: p.mobile,
+                age: p.age,
+                address: p.address,
+                problem: p.problem,
+                visitNumber: newVisitCount,
+                addedBy: currentRole,
+                createdAt: serverTimestamp()
+            });
+
+            alert(`${p.name} ko Waiting Number #${tokenNumber} par add kar diya gaya hai.`);
+        };
+
+        function renderWaitingLists() {
+            const docContainer = document.getElementById("doctorWaitingList");
+            const recContainer = document.getElementById("receptionWaitingList");
+            document.getElementById("waitingCountDoc").textContent = queueCache.length;
+            document.getElementById("waitingCountRec").textContent = queueCache.length;
+
+            if (queueCache.length === 0) {
+                docContainer.innerHTML = `<p class="muted">Abhi waiting mein koi patient nahi hai.</p>`;
+                recContainer.innerHTML = `<p class="muted">Abhi waiting list khaali hai.</p>`;
+                return;
+            }
+
+            recContainer.innerHTML = queueCache.map((q, idx) => `
+                <div class="queue-item">
+                    <div>
+                        <span class="token-pill">#${q.token}</span>
+                        <strong>${q.name}</strong> (${q.mobile})
+                        <div class="muted">Dikkat: ${q.problem} | Aap se pehle: ${idx} patient</div>
+                    </div>
+                </div>
+            `).join("");
+
+            docContainer.innerHTML = queueCache.map((q) => `
+                <div class="queue-item">
+                    <div>
+                        <span class="token-pill">#${q.token}</span>
+                        <strong>${q.name}</strong> | Age: ${q.age} | Mob: ${q.mobile}
+                        <div class="muted">Address: ${q.address} | Dikkat: ${q.problem}</div>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-sm btn-blue" onclick="openPatientForDoctor('${q.patientId}')">History / Ilaj</button>
+                        <button class="btn btn-sm btn-success" onclick="markPatientSeen('${q.id}')">Dekh Liya</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        window.markPatientSeen = async function(queueDocId) {
+            const item = queueCache.find(q => q.id === queueDocId);
+            if (!item) return;
+
+            await addDoc(collection(db, "lastSeen"), {
+                patientId: item.patientId,
+                name: item.name,
+                mobile: item.mobile,
+                age: item.age,
+                address: item.address,
+                problem: item.problem,
+                seenAt: serverTimestamp()
+            });
+
+            await deleteDoc(doc(db, "waitingQueue", queueDocId));
+        };
+
+        function renderLastSeenList() {
+            const container = document.getElementById("lastSeenList");
+            if (lastSeenCache.length === 0) {
+                container.innerHTML = `<p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>`;
+                return;
+            }
+
+            container.innerHTML = lastSeenCache.map(s => `
+                <div class="seen-item">
+                    <div>
+                        <strong>${s.name}</strong> (Age: ${s.age}, Mob: ${s.mobile})
+                        <div class="muted">Address: ${s.address} | Dikkat: ${s.problem}</div>
+                    </div>
+                    <button class="btn btn-sm" onclick="openPatientForDoctor('${s.patientId}')">History</button>
+                </div>
+            `).join("");
+        }
+
+        function renderQuickPatientList() {
+            const box = document.getElementById("allPatientsQuickList");
+            if (!patientsCache.length) {
+                box.innerHTML = "";
+                return;
+            }
+            const recent = patientsCache.slice(0, 5);
+            box.innerHTML = `<div class="muted" style="margin-bottom:6px;">Recent Patients:</div>` + recent.map(p => `
+                <button class="btn btn-sm" style="background:#e2e8f0; color:#0f172a; margin:0 6px 6px 0;" onclick="selectAndShowPatient('${p.id}')">
+                    ${p.name} (${p.mobile})
+                </button>
+            `).join("");
+        }
+
+        window.searchPatientByMobile = function() {
+            const mob = document.getElementById("searchMobileInput").value.trim();
+            const resBox = document.getElementById("patientHistoryResult");
+            if (!mob) {
+                resBox.innerHTML = `<p class="muted">Kripya mobile number daalein.</p>`;
+                return;
+            }
+
+            const found = patientsCache.filter(p => (p.mobile || "").includes(mob));
+            if (found.length === 0) {
+                resBox.innerHTML = `<p style="color:#dc2626;">Is mobile number (${mob}) se koi patient record nahi mila.</p>`;
+                return;
+            }
+
+            if (found.length === 1) {
+                selectAndShowPatient(found[0].id);
+            } else {
+                resBox.innerHTML = found.map(p => `
+                    <div class="queue-item">
+                        <div>
+                            <strong>${p.name}</strong> (${p.mobile}) - Age: ${p.age}
+                            <div class="muted">Dikkat: ${p.problem}</div>
+                        </div>
+                        <button class="btn btn-sm" onclick="selectAndShowPatient('${p.id}')">Open</button>
+                    </div>
+                `).join("");
+            }
+        };
+
+        window.openPatientForDoctor = function(patientId) {
+            switchMainTab("history");
+            selectAndShowPatient(patientId);
+        };
+
+        window.selectAndShowPatient = function(patientId) {
+            selectedPatientId = patientId;
+            renderPatientHistoryById(patientId);
+        };
+
+        function renderPatientHistoryById(patientId) {
+            const p = patientsCache.find(item => item.id === patientId);
+            const resBox = document.getElementById("patientHistoryResult");
+            if (!p) return;
+
+            document.getElementById("selectedPatientBanner").innerHTML =
+                `Selected Patient: <strong>${p.name}</strong> (${p.mobile}) | Total Visits: <strong>${p.visitCount || 1}</strong>`;
+
+            if (p.lastVisitDate) {
+                document.getElementById("lastVisitDateInput").value = p.lastVisitDate;
+            }
+            if (p.nextAppointmentDate) {
+                document.getElementById("nextDateInput").value = p.nextAppointmentDate;
+            }
+
+            const visits = Array.isArray(p.visits) ? p.visits : [];
+            const visitsHTML = visits.length === 0
+                ? `<p class="muted">Abhi is patient ki koi visit treatment entry nahi dali gayi hai.</p>`
+                : visits.map((v, index) => `
+                    <div class="visit-card">
+                        <div class="visit-header">Visit #${index + 1} — Tarikh: ${v.visitDate || "-"}</div>
+                        <div><strong>Kya Ilaaj Kiya:</strong> ${v.treatment || "-"}</div>
+                        <div><strong>Kya Cheez Di Gayi:</strong> ${v.itemsGiven || "-"}</div>
+                        <div><strong>Kitna Bill Bana:</strong> ₹${v.billAmount || 0}</div>
+                        <div><strong>Next Date Di Gayi:</strong> ${v.nextDate || "-"}</div>
+                    </div>
+                `).join("");
+
+            resBox.innerHTML = `
+                <div class="patient-summary">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <h4 style="color:#0f766e; font-size:1.05rem;">${p.name} (Age: ${p.age})</h4>
+                        <button class="btn btn-sm btn-success" onclick="addReturningPatientToQueue('${p.id}')">+ Waiting List Mein Dalein</button>
+                    </div>
+                    <p style="margin-top:6px;"><strong>Mobile:</strong> ${p.mobile} | <strong>Address:</strong> ${p.address}</p>
+                    <p><strong>Dikkat / Problem:</strong> ${p.problem}</p>
+                    <p><strong>Kitni Baar Aaya (Total Visits):</strong> ${p.visitCount || 1}</p>
+                    <p><strong>Last Visit Date:</strong> ${p.lastVisitDate || "-"} | <strong>Next Appointment Date:</strong> ${p.nextAppointmentDate || "Set nahi hui"}</p>
+                </div>
+                <h4 style="margin-bottom:8px; color:#1e293b;">Visit-Wise Poori History:</h4>
+                ${visitsHTML}
+            `;
+        }
+
+        // Doctor saves visit treatment, item, bill & next date
+        document.getElementById("visitUpdateForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (currentRole !== "doctor") {
+                alert("Sirf Doctor visit/bill/next date update kar sakte hain.");
+                return;
+            }
+            if (!selectedPatientId) {
+                alert("Pehle koi patient select karein.");
+                return;
+            }
+
+            const p = patientsCache.find(item => item.id === selectedPatientId);
+            if (!p) return;
+
+            const visitDate = document.getElementById("visitDate").value;
+            const treatment = document.getElementById("visitTreatment").value.trim();
+            const itemsGiven = document.getElementById("visitItems").value.trim();
+            const billAmount = Number(document.getElementById("visitBill").value || 0);
+            const lastVisitDate = document.getElementById("lastVisitDateInput").value || visitDate;
+            const nextDate = document.getElementById("nextDateInput").value;
+
+            const existingVisits = Array.isArray(p.visits) ? p.visits : [];
+            const updatedVisits = [
+                ...existingVisits,
+                {
+                    visitDate,
+                    treatment,
+                    itemsGiven,
+                    billAmount,
+                    nextDate
+                }
+            ];
+
+            await updateDoc(doc(db, "patients", selectedPatientId), {
+                visits: updatedVisits,
+                visitCount: updatedVisits.length,
+                lastVisitDate,
+                nextAppointmentDate: nextDate
+            });
+
+            document.getElementById("visitTreatment").value = "";
+            document.getElementById("visitItems").value = "";
+            document.getElementById("visitBill").value = "";
+            alert("Visit record, bill aur next appointment date save ho gayi hai!");
+        });
+    </script>
 </body>
 </html>
