@@ -354,7 +354,7 @@
         <h2>Clinic Login</h2>
         <p class="login-sub">Apne registered Gmail aur Password se login karein</p>
 
-        <form id="loginForm">
+        <form id="loginForm" action="javascript:void(0);">
             <div class="form-group">
                 <label for="loginEmail">Gmail ID</label>
                 <input type="email" id="loginEmail" placeholder="doctor@gmail.com ya reception@gmail.com" required>
@@ -388,7 +388,7 @@
             <div class="grid-2">
                 <div class="card">
                     <h3 id="addFormHeading">Add New Patient</h3>
-                    <form id="addPatientForm">
+                    <form id="addPatientForm" action="javascript:void(0);">
                         <div class="form-group">
                             <label>Patient Name (Mareez ka Naam) *</label>
                             <input type="text" id="pName" required placeholder="Poora naam likhein">
@@ -400,6 +400,14 @@
                         <div class="form-group">
                             <label>Age (Umra) *</label>
                             <input type="number" id="pAge" required min="1" max="120" placeholder="Saal mein umra">
+                        </div>
+                        <div class="form-group">
+                            <label>Gender (Ling)</label>
+                            <select id="pGender">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Address (Pata) *</label>
@@ -462,7 +470,7 @@
                     <h3>Doctor: Visit Treatment, Medicine/Item, Bill & Next Date</h3>
                     <p class="muted" id="selectedPatientBanner" style="margin-bottom: 12px;">Pehle koi patient select karein.</p>
 
-                    <form id="visitUpdateForm">
+                    <form id="visitUpdateForm" action="javascript:void(0);">
                         <div class="form-group">
                             <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
                             <input type="date" id="visitDate" required>
@@ -510,9 +518,12 @@
         let currentUid = null;
         let currentEmail = null;
         let currentRole = "reception";
+        let isLoggedInSession = false;
         let patientsCache = [];
-        let queueCache = [];
-        let lastSeenCache = [];
+        let appointmentsCache = [];
+        let visitsCache = [];
+        let treatmentsCache = [];
+        let paymentsCache = [];
         let selectedPatientId = null;
         let nextTokenCounter = 1;
         let syncTimer = null;
@@ -520,7 +531,8 @@
         const todayISO = () => new Date().toISOString().split("T")[0];
         document.getElementById("visitDate").value = todayISO();
 
-        function setupUIForRole(role, email) {
+        function showDashboardView(role, email) {
+            isLoggedInSession = true;
             currentRole = role;
             document.getElementById("loggedUserEmail").textContent = `Logged in: ${email} | Role: ${role.toUpperCase()}`;
             if (role === "doctor") {
@@ -538,33 +550,17 @@
                 document.getElementById("doctorSidePanel").classList.add("hidden");
                 document.getElementById("doctorTreatmentCard").classList.add("hidden");
             }
+            document.getElementById("loginSection").classList.add("hidden");
+            document.getElementById("dashboardSection").style.display = "block";
+        }
+
+        function showLoginView() {
+            isLoggedInSession = false;
+            document.getElementById("dashboardSection").style.display = "none";
+            document.getElementById("loginSection").classList.remove("hidden");
         }
 
         window.switchMainTab = function(tab) {
             const addTab = document.getElementById("addTabContent");
             const histTab = document.getElementById("historyTabContent");
-            const btnAdd = document.getElementById("tabAddBtn");
-            const btnHist = document.getElementById("tabHistoryBtn");
-
-            if (tab === "add") {
-                addTab.classList.remove("hidden");
-                histTab.classList.add("hidden");
-                btnAdd.classList.add("active");
-                btnHist.classList.remove("active");
-            } else {
-                addTab.classList.add("hidden");
-                histTab.classList.remove("hidden");
-                btnHist.classList.add("active");
-                btnAdd.classList.remove("active");
-                renderQuickPatientList();
-            }
-        };
-
-        function encodeFirestoreVal(val) {
-            if (val === null || val === undefined) return { nullValue: null };
-            if (typeof val === "number") {
-                return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
-            }
-            if (typeof val === "boolean") return { booleanValue: val };
-            if (Array.isArray(val)) {
-                return { arrayValue: { values: val.map(encodeFir
+            const btnAdd = document.get
