@@ -1,535 +1,1020 @@
-<script>
-    const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyDF4uLFVQqujkp6LgoSs29_CN0FeSC65qY",
-        authDomain: "family-health-care-centre.firebaseapp.com",
-        projectId: "family-health-care-centre"
-    };
-
-    // YAHAN APNI DOCTOR KI GMAIL ID LIKHEIN (small letters mein)
-    // Example: const DOCTOR_EMAILS = ["doctor.clinic@gmail.com"];
-    const DOCTOR_EMAILS = [
-        // apni doctor email yahan likhein
-    ];
-
-    const SESSION_STORAGE_KEY = "fhcc_clinic_session_v1";
-    const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
-
-    const statusEl = document.getElementById("loginStatus");
-    const errEl = document.getElementById("loginError");
-    const loginForm = document.getElementById("loginForm");
-    const loginBtn = document.getElementById("loginBtn");
-
-    let authToken = null;
-    let currentUid = null;
-    let currentEmail = null;
-    let currentRole = "reception";
-    let isLoggedInSession = false;
-    let patientsCache = [];
-    let appointmentsCache = [];
-    let visitsCache = [];
-    let selectedPatientId = null;
-    let nextTokenCounter = 1;
-
-    const todayISO = () => new Date().toISOString().split("T")[0];
-    document.getElementById("visitDate").value = todayISO();
-
-    function updateSaveButtonLabel() {
-        const btn = document.getElementById("savePatientBtn");
-        if (!btn) return;
-        btn.textContent = currentRole === "doctor"
-            ? "Save Patient Directly (No Waiting)"
-            : "Save & Add to Waiting";
-    }
-
-    function showDashboardView(role, email) {
-        currentRole = role === "doctor" ? "doctor" : "reception";
-        isLoggedInSession = true;
-
-        document.getElementById("loggedUserEmail").textContent =
-            `Logged in: ${email || "Unknown"} | Role: ${currentRole.toUpperCase()}`;
-
-        if (currentRole === "doctor") {
-            document.getElementById("roleTitle").textContent = "Doctor Dashboard";
-            document.getElementById("roleBadge").textContent = "DOCTOR";
-            document.getElementById("addFormHeading").textContent = "Add Patient (Doctor)";
-            document.getElementById("doctorSidePanel").classList.remove("hidden");
-            document.getElementById("receptionSidePanel").classList.add("hidden");
-            document.getElementById("doctorTreatmentCard").classList.remove("hidden");
-        } else {
-            document.getElementById("roleTitle").textContent = "Reception Dashboard";
-            document.getElementById("roleBadge").textContent = "RECEPTION";
-            document.getElementById("addFormHeading").textContent = "Add New Patient";
-            document.getElementById("receptionSidePanel").classList.remove("hidden");
-            document.getElementById("doctorSidePanel").classList.add("hidden");
-            document.getElementById("doctorTreatmentCard").classList.add("hidden");
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Health Care Centre Management Software</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --accent: #0284c7;
+            --bg-dark: #0f2027;
+            --bg-mid: #203a43;
+            --bg-light: #f8fafc;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #cbd5e1;
+            --danger: #dc2626;
+            --success: #15803d;
         }
 
-        updateSaveButtonLabel();
-        document.getElementById("loginSection").classList.add("hidden");
-        document.getElementById("dashboardSection").style.display = "block";
-    }
-
-    function showLoginView() {
-        isLoggedInSession = false;
-        document.getElementById("dashboardSection").style.display = "none";
-        document.getElementById("loginSection").classList.remove("hidden");
-    }
-
-    function saveClinicSession(sessionData) {
-        try {
-            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-        } catch (err) {
-            console.error("Session save error:", err);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
         }
-    }
 
-    function clearClinicSession() {
-        authToken = null;
-        currentUid = null;
-        currentEmail = null;
-        currentRole = "reception";
-        isLoggedInSession = false;
-        try {
-            localStorage.removeItem(SESSION_STORAGE_KEY);
-        } catch (err) {
-            console.error("Session clear error:", err);
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid), #2c5364);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            color: var(--text);
         }
-    }
 
-    async function refreshIdTokenIfNeeded(session) {
-        if (!session.refreshToken) return session.idToken;
-        const res = await fetch(
-            `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_CONFIG.apiKey}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    grant_type: "refresh_token",
-                    refresh_token: session.refreshToken
-                })
+        .top-header {
+            width: 100%;
+            max-width: 1200px;
+            text-align: center;
+            padding: 20px 16px;
+            margin-bottom: 18px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .top-header h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+        }
+
+        .top-header p {
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            margin-top: 4px;
+        }
+
+        .login-box {
+            background: #ffffff;
+            width: 100%;
+            max-width: 420px;
+            padding: 32px 24px;
+            border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+            margin-top: 12px;
+        }
+
+        .login-box h2 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+
+        .login-sub {
+            text-align: center;
+            font-size: 0.84rem;
+            color: var(--muted);
+            margin-bottom: 22px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #334155;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.92rem;
+            outline: none;
+            background: #fff;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            width: 100%;
+            padding: 12px;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-sm {
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            border-radius: 8px;
+            color: #fff;
+            background: var(--primary);
+        }
+
+        .btn-blue {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .error-text {
+            color: var(--danger);
+            font-size: 0.84rem;
+            text-align: center;
+            margin-top: 10px;
+            min-height: 20px;
+            word-break: break-word;
+        }
+
+        .info-text {
+            color: var(--primary-dark);
+            font-size: 0.84rem;
+            text-align: center;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+
+        .dashboard {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+            background: var(--bg-light);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        }
+
+        .dash-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 16px;
+        }
+
+        .role-badge {
+            display: inline-block;
+            background: #ccfbf1;
+            color: var(--primary-dark);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        .main-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1.5px solid var(--primary);
+            background: #fff;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card h3 {
+            color: var(--primary);
+            font-size: 1.08rem;
+            margin-bottom: 12px;
+        }
+
+        .token-banner {
+            display: none;
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 12px;
+            background: #ecfdf5;
+            border: 1.5px solid #10b981;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .queue-item, .seen-item {
+            padding: 12px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .token-pill {
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .search-row input {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.92rem;
+        }
+
+        .patient-summary {
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .visit-card {
+            background: #ffffff;
+            border-left: 4px solid var(--primary);
+            border-top: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+        .visit-header {
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 600px) {
+            .top-header h1 {
+                font-size: 1.25rem;
             }
-        );
-        if (!res.ok) throw new Error("Token refresh failed");
-        const data = await res.json();
-        const updatedSession = {
-            ...session,
-            idToken: data.id_token,
-            refreshToken: data.refresh_token || session.refreshToken,
-            uid: data.user_id || session.uid
+            .dashboard {
+                padding: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-header">
+        <h1>Family Health Care Centre Management Software</h1>
+        <p id="headerSubtitle">Authorized Clinic Login</p>
+    </header>
+
+    <div class="login-box" id="loginSection">
+        <h2>Clinic Login</h2>
+        <p class="login-sub">Apne registered Gmail aur Password se login karein</p>
+
+        <form id="loginForm" action="javascript:void(0);">
+            <div class="form-group">
+                <label for="loginEmail">Gmail ID</label>
+                <input type="email" id="loginEmail" placeholder="doctor@gmail.com ya reception@gmail.com" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="loginBtn">Login</button>
+            <p class="info-text" id="loginStatus"></p>
+            <p class="error-text" id="loginError"></p>
+        </form>
+    </div>
+
+    <div class="dashboard" id="dashboardSection">
+        <div class="dash-top">
+            <div>
+                <span id="roleTitle" style="font-weight:700; font-size:1.15rem; color:#0f766e;">Dashboard</span>
+                <span class="role-badge" id="roleBadge">ROLE</span>
+                <div class="muted" id="loggedUserEmail"></div>
+            </div>
+            <button class="btn btn-danger btn-sm" id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="main-tabs">
+            <button class="tab-btn active" id="tabAddBtn" onclick="switchMainTab('add')">Add New Patient</button>
+            <button class="tab-btn" id="tabHistoryBtn" onclick="switchMainTab('history')">Patient History</button>
+        </div>
+
+        <div id="addTabContent">
+            <div class="grid-2">
+                <div class="card">
+                    <h3 id="addFormHeading">Add New Patient</h3>
+                    <form id="addPatientForm" action="javascript:void(0);">
+                        <div class="form-group">
+                            <label>Patient Name (Mareez ka Naam) *</label>
+                            <input type="text" id="pName" required placeholder="Poora naam likhein">
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile Number *</label>
+                            <input type="tel" id="pMobile" required placeholder="10 digit mobile number">
+                        </div>
+                        <div class="form-group">
+                            <label>Age (Umra) *</label>
+                            <input type="number" id="pAge" required min="1" max="120" placeholder="Saal mein umra">
+                        </div>
+                        <div class="form-group">
+                            <label>Gender (Ling)</label>
+                            <select id="pGender">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Address (Pata) *</label>
+                            <input type="text" id="pAddress" required placeholder="Gaon / Mohalla / Shehar">
+                        </div>
+                        <div class="form-group">
+                            <label>Kya Dikkat Hai (Problem / Symptoms) *</label>
+                            <textarea id="pProblem" rows="3" required placeholder="Mareez ki samasya ya lakshan likhein"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="savePatientBtn">Save & Add to Waiting</button>
+                    </form>
+
+                    <div class="token-banner" id="tokenResultBox"></div>
+                </div>
+
+                <div id="doctorSidePanel" class="hidden">
+                    <div class="card" style="margin-bottom: 18px;">
+                        <h3>Waiting List (<span id="waitingCountDoc">0</span> Patients)</h3>
+                        <div id="doctorWaitingList">
+                            <p class="muted">Abhi waiting mein koi patient nahi hai.</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Last Seen Patients (Jo Dekhe Gaye)</h3>
+                        <div id="lastSeenList">
+                            <p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="receptionSidePanel" class="hidden">
+                    <div class="card">
+                        <h3>Current Waiting List (<span id="waitingCountRec">0</span> Patients)</h3>
+                        <p class="muted" style="margin-bottom: 10px;">Mareez ko unka waiting number yahan se batayein:</p>
+                        <div id="receptionWaitingList">
+                            <p class="muted">Abhi waiting list khaali hai.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="historyTabContent" class="hidden">
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Patient History (Mobile Number Se Search Karein)</h3>
+                    <div class="search-row">
+                        <input type="tel" id="searchMobileInput" placeholder="Mobile number daalein...">
+                        <button class="btn btn-sm btn-blue" onclick="searchPatientByMobile()">Search</button>
+                    </div>
+
+                    <div id="allPatientsQuickList" style="margin-bottom: 12px;"></div>
+                    <div id="patientHistoryResult">
+                        <p class="muted">Kisi patient ka mobile number search karein ya neeche list se chunein.</p>
+                    </div>
+                </div>
+
+                <div class="card" id="doctorTreatmentCard">
+                    <h3>Doctor: Visit Treatment, Medicine/Item, Bill & Next Date</h3>
+                    <p class="muted" id="selectedPatientBanner" style="margin-bottom: 12px;">Pehle koi patient select karein.</p>
+
+                    <form id="visitUpdateForm" action="javascript:void(0);">
+                        <div class="form-group">
+                            <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
+                            <input type="date" id="visitDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Kya Ilaaj Kiya (Treatment) *</label>
+                            <textarea id="visitTreatment" rows="2" required placeholder="Kiye gaye ilaaj / therapy ki detail"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Kya Cheez Di Gayi (Medicine / Item / Kit)</label>
+                            <input type="text" id="visitItems" placeholder="Jo cheez/dawa/kit patient ko di gayi">
+                        </div>
+                        <div class="form-group">
+                            <label>Kitna Bill Bana (Bill Amount ₹) *</label>
+                            <input type="number" id="visitBill" min="0" required placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Visit Date (Pichhli Tarikh)</label>
+                            <input type="date" id="lastVisitDateInput">
+                        </div>
+                        <div class="form-group">
+                            <label>Next Appointment Date (Agli Tarikh) *</label>
+                            <input type="date" id="nextDateInput" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="saveVisitBtn">Save Visit & Update Dates</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDF4uLFVQqujkp6LgoSs29_CN0FeSC65qY",
+            authDomain: "family-health-care-centre.firebaseapp.com",
+            projectId: "family-health-care-centre"
         };
-        saveClinicSession(updatedSession);
-        return updatedSession.idToken;
-    }
 
-    function toFirestoreFields(obj) {
-        const fields = {};
-        for (const [k, v] of Object.entries(obj)) {
-            if (v === null || v === undefined) continue;
-            if (typeof v === "number") {
-                fields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+        const DOCTOR_EMAILS = [
+            "mohitbhargava0001@gmail.com"
+        ];
+
+        const SESSION_STORAGE_KEY = "fhcc_clinic_session_v1";
+        const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
+
+        const statusEl = document.getElementById("loginStatus");
+        const errEl = document.getElementById("loginError");
+        const loginForm = document.getElementById("loginForm");
+        const loginBtn = document.getElementById("loginBtn");
+
+        let authToken = null;
+        let currentUid = null;
+        let currentEmail = null;
+        let currentRole = "reception";
+        let isLoggedInSession = false;
+        let patientsCache = [];
+        let appointmentsCache = [];
+        let visitsCache = [];
+        let selectedPatientId = null;
+        let nextTokenCounter = 1;
+
+        const todayISO = () => new Date().toISOString().split("T")[0];
+        document.getElementById("visitDate").value = todayISO();
+
+        function normalizeEmail(email = "") {
+            return String(email || "").trim().toLowerCase().replace(/\s+/g, "");
+        }
+
+        function resolveRoleFromEmail(email = "") {
+            const cleanEmail = normalizeEmail(email);
+            const doctorList = DOCTOR_EMAILS.map(normalizeEmail).filter(Boolean);
+            if (doctorList.includes(cleanEmail)) {
+                return "doctor";
+            }
+            return "reception";
+        }
+
+        function updateSaveButtonLabel() {
+            const btn = document.getElementById("savePatientBtn");
+            if (!btn) return;
+            btn.textContent = currentRole === "doctor"
+                ? "Save Patient Directly (No Waiting)"
+                : "Save & Add to Waiting";
+        }
+
+        function showDashboardView(role, email) {
+            currentRole = resolveRoleFromEmail(email) === "doctor" || role === "doctor"
+                ? (resolveRoleFromEmail(email) === "doctor" ? "doctor" : "reception")
+                : "reception";
+            isLoggedInSession = true;
+
+            document.getElementById("loggedUserEmail").textContent =
+                `Logged in: ${email || "Unknown"} | Role: ${currentRole.toUpperCase()}`;
+
+            if (currentRole === "doctor") {
+                document.getElementById("roleTitle").textContent = "Doctor Dashboard";
+                document.getElementById("roleBadge").textContent = "DOCTOR";
+                document.getElementById("addFormHeading").textContent = "Add Patient (Doctor)";
+                document.getElementById("doctorSidePanel").classList.remove("hidden");
+                document.getElementById("receptionSidePanel").classList.add("hidden");
+                document.getElementById("doctorTreatmentCard").classList.remove("hidden");
             } else {
-                fields[k] = { stringValue: String(v) };
+                document.getElementById("roleTitle").textContent = "Reception Dashboard";
+                document.getElementById("roleBadge").textContent = "RECEPTION";
+                document.getElementById("addFormHeading").textContent = "Add New Patient";
+                document.getElementById("receptionSidePanel").classList.remove("hidden");
+                document.getElementById("doctorSidePanel").classList.add("hidden");
+                document.getElementById("doctorTreatmentCard").classList.add("hidden");
             }
-        }
-        return fields;
-    }
 
-    function fromFirestoreDoc(doc) {
-        const out = { id: doc.name.split("/").pop() };
-        const fields = doc.fields || {};
-        for (const [k, val] of Object.entries(fields)) {
-            if ("stringValue" in val) out[k] = val.stringValue;
-            else if ("integerValue" in val) out[k] = Number(val.integerValue);
-            else if ("doubleValue" in val) out[k] = Number(val.doubleValue);
-        }
-        return out;
-    }
-
-    async function upsertDoc(collectionName, docId, dataObj) {
-        if (!authToken) return;
-        const url = `${FIRESTORE_BASE_URL}/${collectionName}/${docId}`;
-        await fetch(url, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${authToken}`
-            },
-            body: JSON.stringify({ fields: toFirestoreFields(dataObj) })
-        });
-    }
-
-    async function listDocs(collectionName) {
-        if (!authToken) return [];
-        const url = `${FIRESTORE_BASE_URL}/${collectionName}?pageSize=200`;
-        const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${authToken}` }
-        });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return (data.documents || []).map(fromFirestoreDoc);
-    }
-
-    async function resolveUserRole(email = "", uid = "") {
-        const cleanEmail = (email || "").trim().toLowerCase();
-        const doctorList = DOCTOR_EMAILS.map(e => String(e || "").trim().toLowerCase()).filter(Boolean);
-
-        if (
-            doctorList.includes(cleanEmail) ||
-            cleanEmail.includes("doctor") ||
-            cleanEmail.includes("dr.") ||
-            cleanEmail.startsWith("dr")
-        ) {
-            return "doctor";
+            updateSaveButtonLabel();
+            document.getElementById("loginSection").classList.add("hidden");
+            document.getElementById("dashboardSection").style.display = "block";
         }
 
-        if (authToken) {
-            for (const colName of ["users", "staff_roles", "roles", "staff"]) {
-                try {
-                    const docs = await listDocs(colName);
-                    const matched = docs.find(d =>
-                        (uid && (d.id === uid || d.uid === uid)) ||
-                        ((d.email || "").trim().toLowerCase() === cleanEmail)
-                    );
-                    const rawRole = (matched?.role || matched?.userRole || matched?.type || "").toLowerCase();
-                    if (rawRole) {
-                        return rawRole.includes("doc") ? "doctor" : "reception";
-                    }
-                } catch (_) {
-                    // Agla collection try karein
-                }
+        function showLoginView() {
+            isLoggedInSession = false;
+            document.getElementById("dashboardSection").style.display = "none";
+            document.getElementById("loginSection").classList.remove("hidden");
+        }
+
+        function saveClinicSession(sessionData) {
+            try {
+                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+            } catch (err) {
+                console.error("Session save error:", err);
             }
         }
 
-        return "reception";
-    }
-
-    async function loadAllClinicData() {
-        if (!authToken) return;
-        const [pats, appts, visits] = await Promise.all([
-            listDocs("patients"),
-            listDocs("appointments"),
-            listDocs("visits")
-        ]);
-        patientsCache = pats.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-        appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
-        visitsCache = visits.sort((a, b) => (b.visitDate || "").localeCompare(a.visitDate || ""));
-        const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
-        nextTokenCounter = maxToken + 1;
-        renderAllViews();
-    }
-
-    async function restoreClinicSession() {
-        try {
-            const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-            if (!raw) {
-                showLoginView();
-                return;
+        function clearClinicSession() {
+            authToken = null;
+            currentUid = null;
+            currentEmail = null;
+            currentRole = "reception";
+            isLoggedInSession = false;
+            try {
+                localStorage.removeItem(SESSION_STORAGE_KEY);
+            } catch (err) {
+                console.error("Session clear error:", err);
             }
-            const saved = JSON.parse(raw);
-            if (!saved || !saved.email) {
-                showLoginView();
-                return;
-            }
-            currentEmail = saved.email;
-            currentUid = saved.uid || null;
-            authToken = saved.idToken || null;
-
-            if (saved.idToken && saved.refreshToken) {
-                try {
-                    authToken = await refreshIdTokenIfNeeded(saved);
-                } catch (_) {
-                    // Offline fallback
-                }
-            }
-
-            currentRole = await resolveUserRole(currentEmail, currentUid);
-            saveClinicSession({
-                idToken: authToken || saved.idToken,
-                refreshToken: saved.refreshToken,
-                uid: currentUid,
-                email: currentEmail,
-                role: currentRole
-            });
-
-            showDashboardView(currentRole, currentEmail);
-            await loadAllClinicData();
-        } catch (err) {
-            console.error("Restore session error:", err);
-            showLoginView();
         }
-    }
 
-    loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        errEl.textContent = "";
-        statusEl.textContent = "Logging in...";
-        loginBtn.disabled = true;
-
-        const typedEmail = document.getElementById("loginEmail").value.trim();
-        const password = document.getElementById("loginPassword").value;
-
-        try {
+        async function refreshIdTokenIfNeeded(session) {
+            if (!session.refreshToken) return session.idToken;
             const res = await fetch(
-                `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`,
+                `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_CONFIG.apiKey}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email: typedEmail, password, returnSecureToken: true })
+                    body: JSON.stringify({
+                        grant_type: "refresh_token",
+                        refresh_token: session.refreshToken
+                    })
                 }
             );
+            if (!res.ok) throw new Error("Token refresh failed");
             const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data?.error?.message || "Invalid email or password");
+            const updatedSession = {
+                ...session,
+                idToken: data.id_token,
+                refreshToken: data.refresh_token || session.refreshToken,
+                uid: data.user_id || session.uid
+            };
+            saveClinicSession(updatedSession);
+            return updatedSession.idToken;
+        }
+
+        function toFirestoreFields(obj) {
+            const fields = {};
+            for (const [k, v] of Object.entries(obj)) {
+                if (v === null || v === undefined) continue;
+                if (typeof v === "number") {
+                    fields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+                } else {
+                    fields[k] = { stringValue: String(v) };
+                }
             }
+            return fields;
+        }
 
-            authToken = data.idToken;
-            currentUid = data.localId;
-            currentEmail = data.email || typedEmail;
-            currentRole = await resolveUserRole(currentEmail, currentUid);
+        function fromFirestoreDoc(doc) {
+            const out = { id: doc.name.split("/").pop() };
+            const fields = doc.fields || {};
+            for (const [k, val] of Object.entries(fields)) {
+                if ("stringValue" in val) out[k] = val.stringValue;
+                else if ("integerValue" in val) out[k] = Number(val.integerValue);
+                else if ("doubleValue" in val) out[k] = Number(val.doubleValue);
+            }
+            return out;
+        }
 
-            saveClinicSession({
-                idToken: data.idToken,
-                refreshToken: data.refreshToken,
-                uid: data.localId,
-                email: currentEmail,
-                role: currentRole
+        async function upsertDoc(collectionName, docId, dataObj) {
+            if (!authToken) return;
+            const url = `${FIRESTORE_BASE_URL}/${collectionName}/${docId}`;
+            await fetch(url, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ fields: toFirestoreFields(dataObj) })
             });
-
-            statusEl.textContent = "";
-            showDashboardView(currentRole, currentEmail);
-            await loadAllClinicData();
-        } catch (err) {
-            statusEl.textContent = "";
-            errEl.textContent = err.message || "Login failed";
-        } finally {
-            loginBtn.disabled = false;
         }
-    });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-        clearClinicSession();
-        showLoginView();
-    });
-
-    window.switchMainTab = function(tab) {
-        const addTab = document.getElementById("addTabContent");
-        const histTab = document.getElementById("historyTabContent");
-        const btnAdd = document.getElementById("tabAddBtn");
-        const btnHist = document.getElementById("tabHistoryBtn");
-
-        if (tab === "history") {
-            addTab.classList.add("hidden");
-            histTab.classList.remove("hidden");
-            btnAdd.classList.remove("active");
-            btnHist.classList.add("active");
-            renderQuickPatientsList();
-            renderPatientHistoryView();
-        } else {
-            histTab.classList.add("hidden");
-            addTab.classList.remove("hidden");
-            btnHist.classList.remove("active");
-            btnAdd.classList.add("active");
+        async function listDocs(collectionName) {
+            if (!authToken) return [];
+            const url = `${FIRESTORE_BASE_URL}/${collectionName}?pageSize=200`;
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data.documents || []).map(fromFirestoreDoc);
         }
-    };
 
-    document.getElementById("addPatientForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
+        async function loadAllClinicData() {
+            if (!authToken) return;
+            const [pats, appts, visits] = await Promise.all([
+                listDocs("patients"),
+                listDocs("appointments"),
+                listDocs("visits")
+            ]);
+            patientsCache = pats.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+            appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
+            visitsCache = visits.sort((a, b) => (b.visitDate || "").localeCompare(a.visitDate || ""));
+            const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
+            nextTokenCounter = maxToken + 1;
+            renderAllViews();
+        }
 
-        const patientData = {
-            name: document.getElementById("pName").value.trim(),
-            mobile: document.getElementById("pMobile").value.trim(),
-            age: Number(document.getElementById("pAge").value),
-            gender: document.getElementById("pGender").value,
-            address: document.getElementById("pAddress").value.trim(),
-            problem: document.getElementById("pProblem").value.trim(),
-            addedByRole: currentRole,
-            addedByEmail: currentEmail || "",
-            status: currentRole === "doctor" ? "saved_direct" : "waiting",
-            createdAt: new Date().toISOString()
+        async function restoreClinicSession() {
+            try {
+                const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+                if (!raw) {
+                    showLoginView();
+                    return;
+                }
+                const saved = JSON.parse(raw);
+                if (!saved || !saved.email) {
+                    showLoginView();
+                    return;
+                }
+                currentEmail = saved.email;
+                currentUid = saved.uid || null;
+                authToken = saved.idToken || null;
+
+                if (saved.idToken && saved.refreshToken) {
+                    try {
+                        authToken = await refreshIdTokenIfNeeded(saved);
+                    } catch (_) {
+                        // Offline fallback
+                    }
+                }
+
+                currentRole = resolveRoleFromEmail(currentEmail);
+                saveClinicSession({
+                    idToken: authToken || saved.idToken,
+                    refreshToken: saved.refreshToken,
+                    uid: currentUid,
+                    email: currentEmail,
+                    role: currentRole
+                });
+
+                showDashboardView(currentRole, currentEmail);
+                await loadAllClinicData();
+            } catch (err) {
+                console.error("Restore session error:", err);
+                showLoginView();
+            }
+        }
+
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            errEl.textContent = "";
+            statusEl.textContent = "Logging in...";
+            loginBtn.disabled = true;
+
+            const typedEmail = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+
+            try {
+                const res = await fetch(
+                    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: typedEmail, password, returnSecureToken: true })
+                    }
+                );
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data?.error?.message || "Invalid email or password");
+                }
+
+                authToken = data.idToken;
+                currentUid = data.localId;
+                currentEmail = data.email || typedEmail;
+                currentRole = resolveRoleFromEmail(currentEmail);
+
+                saveClinicSession({
+                    idToken: data.idToken,
+                    refreshToken: data.refreshToken,
+                    uid: data.localId,
+                    email: currentEmail,
+                    role: currentRole
+                });
+
+                statusEl.textContent = "";
+                showDashboardView(currentRole, currentEmail);
+                await loadAllClinicData();
+            } catch (err) {
+                statusEl.textContent = "";
+                errEl.textContent = err.message || "Login failed";
+            } finally {
+                loginBtn.disabled = false;
+            }
+        });
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            clearClinicSession();
+            showLoginView();
+        });
+
+        window.switchMainTab = function(tab) {
+            const addTab = document.getElementById("addTabContent");
+            const histTab = document.getElementById("historyTabContent");
+            const btnAdd = document.getElementById("tabAddBtn");
+            const btnHist = document.getElementById("tabHistoryBtn");
+
+            if (tab === "history") {
+                addTab.classList.add("hidden");
+                histTab.classList.remove("hidden");
+                btnAdd.classList.remove("active");
+                btnHist.classList.add("active");
+                renderQuickPatientsList();
+                renderPatientHistoryView();
+            } else {
+                histTab.classList.add("hidden");
+                addTab.classList.remove("hidden");
+                btnHist.classList.remove("active");
+                btnAdd.classList.add("active");
+            }
         };
 
-        const patientDocId = "pat_" + Date.now();
-        const savedPatient = { id: patientDocId, ...patientData };
-        patientsCache.unshift(savedPatient);
-        await upsertDoc("patients", patientDocId, patientData);
+        document.getElementById("addPatientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
 
-        const tokenBox = document.getElementById("tokenResultBox");
-        if (currentRole === "doctor") {
-            selectedPatientId = patientDocId;
-            tokenBox.style.display = "block";
-            tokenBox.textContent = `Patient "${patientData.name}" seedha save ho gaya (Waiting list mein nahi bheja gaya).`;
-        } else {
-            const tokenNumber = nextTokenCounter++;
-            const apptId = "appt_" + Date.now();
-            const apptData = {
-                patientId: patientDocId,
-                name: patientData.name,
-                mobile: patientData.mobile,
-                problem: patientData.problem,
-                token: tokenNumber,
-                status: "waiting",
+            const patientData = {
+                name: document.getElementById("pName").value.trim(),
+                mobile: document.getElementById("pMobile").value.trim(),
+                age: Number(document.getElementById("pAge").value),
+                gender: document.getElementById("pGender").value,
+                address: document.getElementById("pAddress").value.trim(),
+                problem: document.getElementById("pProblem").value.trim(),
+                addedByRole: currentRole,
+                addedByEmail: currentEmail || "",
+                status: currentRole === "doctor" ? "saved_direct" : "waiting",
                 createdAt: new Date().toISOString()
             };
-            appointmentsCache.push({ id: apptId, ...apptData });
-            await upsertDoc("appointments", apptId, apptData);
 
-            tokenBox.style.display = "block";
-            tokenBox.textContent = `Patient save hua! Token Number: #${tokenNumber}`;
-        }
+            const patientDocId = "pat_" + Date.now();
+            const savedPatient = { id: patientDocId, ...patientData };
+            patientsCache.unshift(savedPatient);
+            await upsertDoc("patients", patientDocId, patientData);
 
-        document.getElementById("addPatientForm").reset();
-        renderAllViews();
-    });
+            const tokenBox = document.getElementById("tokenResultBox");
+            if (currentRole === "doctor") {
+                selectedPatientId = patientDocId;
+                tokenBox.style.display = "block";
+                tokenBox.textContent = `Patient "${patientData.name}" seedha save ho gaya (Waiting list mein nahi bheja gaya).`;
+            } else {
+                const tokenNumber = nextTokenCounter++;
+                const apptId = "appt_" + Date.now();
+                const apptData = {
+                    patientId: patientDocId,
+                    name: patientData.name,
+                    mobile: patientData.mobile,
+                    problem: patientData.problem,
+                    token: tokenNumber,
+                    status: "waiting",
+                    createdAt: new Date().toISOString()
+                };
+                appointmentsCache.push({ id: apptId, ...apptData });
+                await upsertDoc("appointments", apptId, apptData);
 
-    window.markPatientSeen = async function(apptId) {
-        const idx = appointmentsCache.findIndex(a => a.id === apptId);
-        if (idx === -1) return;
-        appointmentsCache[idx].status = "seen";
-        appointmentsCache[idx].seenAt = new Date().toISOString();
-        selectedPatientId = appointmentsCache[idx].patientId || null;
-        await upsertDoc("appointments", apptId, appointmentsCache[idx]);
-        renderAllViews();
-    };
+                tokenBox.style.display = "block";
+                tokenBox.textContent = `Patient save hua! Token Number: #${tokenNumber}`;
+            }
 
-    function renderAllViews() {
-        const waitingItems = appointmentsCache.filter(a => a.status === "waiting");
-        const seenItems = appointmentsCache.filter(a => a.status === "seen").slice(-5).reverse();
+            document.getElementById("addPatientForm").reset();
+            renderAllViews();
+        });
 
-        document.getElementById("waitingCountDoc").textContent = waitingItems.length;
-        document.getElementById("waitingCountRec").textContent = waitingItems.length;
-
-        const docWaitEl = document.getElementById("doctorWaitingList");
-        const recWaitEl = document.getElementById("receptionWaitingList");
-        const seenEl = document.getElementById("lastSeenList");
-
-        if (!waitingItems.length) {
-            docWaitEl.innerHTML = `<p class="muted">Abhi waiting mein koi patient nahi hai.</p>`;
-            recWaitEl.innerHTML = `<p class="muted">Abhi waiting list khaali hai.</p>`;
-        } else {
-            docWaitEl.innerHTML = waitingItems.map(item => `
-                <div class="queue-item">
-                    <div>
-                        <span class="token-pill">#${item.token}</span>
-                        <strong>${item.name}</strong> (${item.mobile})<br>
-                        <span class="muted">${item.problem}</span>
-                    </div>
-                    <button class="btn btn-sm btn-success" onclick="markPatientSeen('${item.id}')">Mark Seen</button>
-                </div>
-            `).join("");
-
-            recWaitEl.innerHTML = waitingItems.map(item => `
-                <div class="queue-item">
-                    <div>
-                        <span class="token-pill">#${item.token}</span>
-                        <strong>${item.name}</strong> (${item.mobile})<br>
-                        <span class="muted">${item.problem}</span>
-                    </div>
-                </div>
-            `).join("");
-        }
-
-        seenEl.innerHTML = seenItems.length
-            ? seenItems.map(item => `
-                <div class="seen-item">
-                    <div><strong>${item.name}</strong> (${item.mobile})<br><span class="muted">${item.problem}</span></div>
-                    <button class="btn btn-sm btn-blue" onclick="selectPatientForHistory('${item.patientId || ""}')">Open History</button>
-                </div>
-            `).join("")
-            : `<p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>`;
-
-        renderQuickPatientsList();
-        renderPatientHistoryView();
-    }
-
-    function renderQuickPatientsList() {
-        const box = document.getElementById("allPatientsQuickList");
-        if (!box) return;
-        const recent = patientsCache.slice(0, 6);
-        if (!recent.length) {
-            box.innerHTML = "";
-            return;
-        }
-        box.innerHTML = `<div class="muted" style="margin-bottom:6px;">Recent Patients:</div>` + recent.map(p => `
-            <button type="button" class="btn btn-sm btn-blue" style="margin:2px;" onclick="selectPatientForHistory('${p.id}')">
-                ${p.name} (${p.mobile})
-            </button>
-        `).join("");
-    }
-
-    window.selectPatientForHistory = function(patientId) {
-        selectedPatientId = patientId;
-        renderPatientHistoryView();
-    };
-
-    window.searchPatientByMobile = function() {
-        const q = document.getElementById("searchMobileInput").value.trim();
-        if (!q) {
-            renderPatientHistoryView();
-            return;
-        }
-        const found = patientsCache.find(p => String(p.mobile || "").includes(q));
-        selectedPatientId = found ? found.id : null;
-        renderPatientHistoryView(q);
-    };
-
-    function renderPatientHistoryView(searchTerm = "") {
-        const resEl = document.getElementById("patientHistoryResult");
-        const bannerEl = document.getElementById("selectedPatientBanner");
-        const patient = patientsCache.find(p => p.id === selectedPatientId);
-
-        if (!patient) {
-            if (bannerEl) bannerEl.textContent = "Pehle koi patient select karein.";
-            resEl.innerHTML = searchTerm
-                ? `<p class="muted">"${searchTerm}" ke liye koi patient record nahi mila.</p>`
-                : `<p class="muted">Kisi patient ka mobile number search karein ya upar list se chunein.</p>`;
-            return;
-        }
-
-        if (bannerEl) {
-            bannerEl.textContent = `Selected Patient: ${patient.name} (${patient.mobile})`;
-        }
-
-        const pVisits = visitsCache.filter(v => v.patientId === patient.id);
-        resEl.innerHTML = `
-            <div class="patient-summary">
-                <div><strong>Name:</strong> ${patient.name} | <strong>Age/Gender:</strong> ${patient.age} / ${patient.gender || "-"}</div>
-                <div><strong>Mobile:</strong> ${patient.mobile} | <strong>Address:</strong> ${patient.address || "-"}</div>
-                <div><strong>Initial Problem:</strong> ${patient.problem}</div>
-            </div>
-            ${pVisits.length ? pVisits.map(v => `
-                <div class="visit-card">
-                    <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0}</div>
-                    <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
-                    <div><strong>Medicine/Item:</strong> ${v.items || "-"}</div>
-                    <div class="muted">Next Date: ${v.nextDate || "-"}</div>
-                </div>
-            `).join("") : `<p class="muted">Is patient ki abhi koi visit entry nahi hai.</p>`}
-        `;
-    }
-
-    document.getElementById("visitUpdateForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!selectedPatientId) {
-            alert("Pehle koi patient select ya search karein.");
-            return;
-        }
-        const visitId = "vis_" + Date.now();
-        const visitObj = {
-            patientId: selectedPatientId,
-            visitDate: document.getElementById("visitDate").value,
-            treatment: document.getElementById("visitTreatment").value.trim(),
-            items: document.getElementById("visitItems").value.trim(),
-            bill: Number(document.getElementById("visitBill").value || 0),
-            lastVisitDate: document.getElementById("lastVisitDateInput").value,
-            nextDate: document.getElementById("nextDateInput").value,
-            createdAt: new Date().toISOString()
+        window.markPatientSeen = async function(apptId) {
+            const idx = appointmentsCache.findIndex(a => a.id === apptId);
+            if (idx === -1) return;
+            appointmentsCache[idx].status = "seen";
+            appointmentsCache[idx].seenAt = new Date().toISOString();
+            selectedPatientId = appointmentsCache[idx].patientId || null;
+            await upsertDoc("appointments", apptId, appointmentsCache[idx]);
+            renderAllViews();
         };
-        visitsCache.unshift({ id: visitId, ...visitObj });
-        await upsertDoc("visits", visitId, visitObj);
-        document.getElementById("visitUpdateForm").reset();
-        document.getElementById("visitDate").value = todayISO();
-        renderPatientHistoryView();
-    });
 
-    window.addEventListener("DOMContentLoaded", restoreClinicSession);
-</script>
+        function renderAllViews() {
+            const waitingItems = appointmentsCache.filter(a => a.status === "waiting");
+            const seenItems = appointmentsCache.filter(a => a.status === "seen").slice(-5).reverse();
+
+            document.getElementById("waitingCountDoc").textContent = waitingItems.length;
+            document.getElementById("waitingCountRec").textContent = waitingItems.length;
+
+            const docWaitEl = document.getElementById("doctorWaitingList");
+            const recWaitEl = document.getElementById("receptionWaitingList");
+            const seenEl = document.getElementById("lastSeenList");
+
+            if (!waitingItems.length) {
+                docWaitEl.innerHTML = `<p class="muted">Abhi waiting mein koi patient nahi hai.</p>`;
+                recWaitEl.innerHTML = `<p class="muted">Abhi waiting list khaali hai.</p>`;
+            } else {
+                docWaitEl.innerHTML = waitingItems.map(item => `
+                    <div class="queue-item">
+                        <div>
+                            <span class="token-pill">#${item.token}</span>
+                            <strong>${item.name}</strong> (${item.mobile})<br>
+                            <span class="muted">${item.problem}</span>
+                        </div>
+                        <button class="btn btn-sm btn-success" onclick="markPatientSeen('${item.id}')">Mark Seen</button>
+                    </div>
+                `).join("");
+
+                recWaitEl.innerHTML = waitingItems.map(item => `
+                    <div class="queue-item">
+                        <div>
+                            <span class="token-pill">#${item.token}</span>
+                            <strong>${item.name}</strong> (${item.mobile})<br>
+                            <span class="muted">${item.problem}</span>
+                        </div>
+                    </div>
+                `).join("");
+            }
+
+            seenEl.innerHTML = seenItems.length
+                ? seenItems.map(item => `
+                    <div class="seen-item">
+                        <div><strong>${item.name}</strong> (${item.mobile})<br><span class="muted">${item.problem}</span></div>
+                        <button class="btn btn-sm btn-blue" onclick="selectPatientForHistory('${item.patientId || ""}')">Open History</button>
+                    </div>
+                `).join("")
+                : `<p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>`;
+
+            renderQuickPatientsList();
+            renderPatientHistoryView();
+        }
+
+        function renderQuickPatientsList() {
+            const box = document.getElementById("allPatientsQuickList");
+            if (!box) return;
+            const recent = patientsCache.slice(0, 6);
+            if (!recent.length) {
+                box.innerHTML = "";
+                return;
+            }
+            box.innerHTML = `<div class="muted" style="margin-bottom:6px;">Recent Patients:</div>` + recent.map(p => `
+                <button type="button" class="btn btn-sm btn-blue" style="margin:2px;" onclick="selectPatientForHistory('${p.id}')">
+                    ${p.name} (${p.mobile})
+                </button>
+            `).join("");
+        }
+
+        window.selectPatientForHistory = function(patientId) {
+            selectedPatientId = patientId;
+            renderPatientHistoryView();
+        };
+
+        window.searchPatientByMobile = function() {
+            const q = document.getElementById("searchMobileInput").value.trim();
+            if (!q) {
+                renderPatientHistoryView();
+                return;
+            }
+            const found = patientsCache.find(p => String(p.mobile || "").includes(q));
+            selectedPatientId = found ? found.id : null;
+            renderPatientHistoryView(q);
+        };
+
+        function renderPatientHistoryView(searchTerm = "") {
+            const resEl = document.getElementById("patientHistoryResult");
+            const bannerEl = document.getElementById("selectedPatientBanner");
+            const patient = patientsCache.find(p => p.id === selectedPatientId);
+
+            if (!patient) {
+                if (bannerEl) bannerEl.textContent = "Pehle koi patient select karein.";
+                resEl.innerHTML = searchTerm
+                    ? `<p class="muted">"${searchTerm}" ke liye koi patient record nahi mila.</p>`
+                    : `<p class="muted">Kisi patient ka mobile number search karein ya upar list se chunein.</p>`;
+                return;
+            }
+
+            if (bannerEl) {
+                bannerEl.textContent = `Selected Patient: ${patient.name} (${patient.mobile})`;
+            }
+
+            const pVisits = visitsCache.filter(v => v.patientId === patient.id);
+            resEl.innerHTML = `
+                <div class="patient-summary">
+                    <div><strong>Name:</strong> ${patient.name} | <strong>Age/Gender:</strong> ${patient.age} / ${patient.gender || "-"}</div>
+                    <div><strong>Mobile:</strong> ${patient.mobile} | <strong>Address:</strong> ${patient.address || "-"}</div>
+                    <div><strong>Initial Problem:</strong> ${patient.problem}</div>
+                </div>
+                ${pVisits.length ? pVisits.map(v => `
+                    <div class="visit-card">
+                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0}</div>
+                        <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
+                        <div><strong>Medicine/Item:</strong> ${v.items || "-"}</div>
+                        <div class="muted">Next Date: ${v.nextDate || "-"}</div>
+                    </div>
+                `).join("") : `<p class="muted">Is patient ki abhi koi visit entry nahi hai.</p>`}
+            `;
+        }
+
+        document.getElementById("visitUpdateForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!selectedPatientId) {
+                alert("Pehle koi patient select ya search karein.");
+                return;
+            }
+            const visitId = "vis_" + Date.now();
+            const visitObj = {
+                patientId: selectedPatientId,
+                visitDate: document.getElementById("visitDate").value,
+                treatment: document.getElementById("visitTreatment").value.trim(),
+                items: document.getElementById("visitItems").value.trim(),
+                bill: Number(document.getElementById("visitBill").value || 0),
+                lastVisitDate: document.getElementById("lastVisitDateInput").value,
+                nextDate: document.getElementById("nextDateInput").value,
+                createdAt: new Date().toISOString()
+            };
+            visitsCache.unshift({ id: visitId, ...visitObj });
+            await upsertDoc("visits", visitId, visitObj);
+            document.getElementById("visitUpdateForm").reset();
+            document.getElementById("visitDate").value = todayISO();
+            renderPatientHistoryView();
+        });
+
+        window.addEventListener("DOMContentLoaded", restoreClinicSession);
+    </script>
+</body>
+</html>
