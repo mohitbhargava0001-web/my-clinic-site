@@ -224,6 +224,7 @@
             border: 1.5px solid var(--primary);
             border-radius: 12px;
             padding: 6px 12px;
+            flex-wrap: wrap;
         }
 
         .search-icon {
@@ -234,6 +235,7 @@
 
         .doc-search-box input {
             flex: 1;
+            min-width: 180px;
             border: none;
             background: transparent;
             font-size: 0.96rem;
@@ -618,6 +620,13 @@
             return String(mob || "").replace(/\D/g, "");
         }
 
+        function hasValidPatientIdentity(p) {
+            if (!p || typeof p !== "object") return false;
+            const possibleName = p.name || p.patientName || p.fullName || "";
+            const possibleMobile = p.mobile || p.phone || "";
+            return String(possibleName).trim() !== "" || String(possibleMobile).trim() !== "";
+        }
+
         function resolveRoleFromEmail(email = "") {
             const cleanEmail = normalizeEmail(email);
             const doctorList = DOCTOR_EMAILS.map(normalizeEmail).filter(Boolean);
@@ -754,7 +763,9 @@
                 listDocs("appointments"),
                 listDocs("visits")
             ]);
-            patientsCache = pats.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+            patientsCache = pats
+                .filter(hasValidPatientIdentity)
+                .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
             appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
             visitsCache = visits.sort((a, b) => (b.createdAt || b.visitDate || "").localeCompare(a.createdAt || a.visitDate || ""));
             const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
@@ -866,17 +877,19 @@
             activeDoctorPatientId = patient.id;
             document.getElementById("doctorNewPatientCard").classList.add("hidden");
             document.getElementById("doctorExistingUpdateCard").classList.remove("hidden");
-            document.getElementById("lookupCardTitle").textContent = "Purana Patient Mila — History & Update";
+            document.getElementById("lookupCardTitle").textContent = "Purana Patient Mila — History & Next Date Update";
 
+            const displayName = patient.name || patient.patientName || patient.fullName || "Patient";
+            const displayMobile = patient.mobile || patient.phone || "-";
             const pVisits = visitsCache.filter(v => v.patientId === patient.id);
             const latestVisit = pVisits[0];
 
             document.getElementById("doctorLookupBody").innerHTML = `
                 <div class="patient-summary">
-                    <div><strong>Naam:</strong> ${patient.name} | <strong>Mobile:</strong> ${patient.mobile}</div>
+                    <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile}</div>
                     <div><strong>Age/Gender:</strong> ${patient.age || "-"} / ${patient.gender || "-"} | <strong>Address:</strong> ${patient.address || "-"}</div>
-                    <div><strong>Problem / Treatment:</strong> ${patient.problem || latestVisit?.treatment || "-"}</div>
-                    <div><strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
+                    <div><strong>Problem / Treatment:</strong> ${patient.problem || patient.symptoms || latestVisit?.treatment || "-"}</div>
+                    <div><strong>Last Visit:</strong> ${latestVisit?.visitDate || patient.lastVisitDate || "-"} | <strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
                 </div>
             `;
 
@@ -924,8 +937,8 @@
                 return;
             }
 
-            const matched = patientsCache.find(p => normalizeMobile(p.mobile) === digits)
-                || patientsCache.find(p => normalizeMobile(p.mobile).includes(digits));
+            const matched = patientsCache.find(p => normalizeMobile(p.mobile || p.phone) === digits)
+                || patientsCache.find(p => normalizeMobile(p.mobile || p.phone).includes(digits));
 
             if (matched) {
                 openExistingPatientPanel(matched);
@@ -943,7 +956,7 @@
         window.selectPatientByIdForDoctor = function(patientId) {
             const pat = patientsCache.find(p => p.id === patientId);
             if (!pat) return;
-            document.getElementById("docTopMobileSearch").value = pat.mobile || "";
+            document.getElementById("docTopMobileSearch").value = pat.mobile || pat.phone || "";
             openExistingPatientPanel(pat);
         };
 
@@ -1035,7 +1048,7 @@
 
             renderAllViews();
             openExistingPatientPanel(pat);
-            showDocBanner(`"${pat.name}" ki history aur Next Date (${nextDate}) update ho gayi.`);
+            showDocBanner(`"${pat.name || pat.patientName || "Patient"}" ki history aur Next Date (${nextDate}) update ho gayi.`);
         });
 
         // Reception Tab Switch & Add Patient
@@ -1116,7 +1129,7 @@
                 resEl.innerHTML = `<p class="muted">Mobile number daalein.</p>`;
                 return;
             }
-            const found = patientsCache.find(p => normalizeMobile(p.mobile).includes(q));
+            const found = patientsCache.find(p => normalizeMobile(p.mobile || p.phone).includes(q));
             if (!found) {
                 resEl.innerHTML = `<p class="muted">Is mobile number ke liye koi patient record nahi mila.</p>`;
                 return;
@@ -1124,8 +1137,8 @@
             const pVisits = visitsCache.filter(v => v.patientId === found.id);
             resEl.innerHTML = `
                 <div class="patient-summary">
-                    <div><strong>Naam:</strong> ${found.name} | <strong>Mobile:</strong> ${found.mobile}</div>
-                    <div><strong>Problem:</strong> ${found.problem || "-"} | <strong>Next Date:</strong> ${found.nextDate || "-"}</div>
+                    <div><strong>Naam:</strong> ${found.name || found.patientName || "Patient"} | <strong>Mobile:</strong> ${found.mobile || found.phone || "-"}</div>
+                    <div><strong>Problem:</strong> ${found.problem || found.symptoms || "-"} | <strong>Next Date:</strong> ${found.nextDate || "-"}</div>
                 </div>
                 ${pVisits.map(v => `
                     <div class="visit-card">
@@ -1139,22 +1152,30 @@
         function renderLastPatientsBiodata() {
             const box = document.getElementById("lastPatientsBiodataList");
             if (!box) return;
-            const recentPatients = patientsCache.slice(0, 10);
-            if (!recentPatients.length) {
+
+            const validPatients = patientsCache
+                .filter(hasValidPatientIdentity)
+                .slice(0, 10);
+
+            if (!validPatients.length) {
                 box.innerHTML = `<p class="muted">Abhi koi patient record nahi hai.</p>`;
                 return;
             }
-            box.innerHTML = recentPatients.map(p => {
+
+            box.innerHTML = validPatients.map(p => {
+                const displayName = p.name || p.patientName || p.fullName || "Patient";
+                const displayMobile = p.mobile || p.phone || "-";
                 const pVisits = visitsCache.filter(v => v.patientId === p.id);
                 const latest = pVisits[0];
                 const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
-                const treatment = latest?.treatment || p.lastTreatment || p.problem || "-";
+                const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
                 const bill = latest?.bill ?? p.lastBill ?? "-";
                 const nextDate = latest?.nextDate || p.nextDate || "-";
+
                 return `
                     <div class="biodata-item">
                         <div class="biodata-top">
-                            <div><strong>${p.name}</strong> <span class="muted">(${p.mobile || "-"})</span></div>
+                            <div><strong>${displayName}</strong> <span class="muted">(${displayMobile})</span></div>
                             <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
                         </div>
                         <div class="muted">
@@ -1182,8 +1203,8 @@
                     <div class="queue-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                         <div>
                             <span class="token-pill">#${item.token}</span>
-                            <strong>${item.name}</strong> (${item.mobile})<br>
-                            <span class="muted">${item.problem}</span>
+                            <strong>${item.name || "Patient"}</strong> (${item.mobile || "-"})<br>
+                            <span class="muted">${item.problem || "-"}</span>
                         </div>
                         <button class="btn btn-sm btn-success" onclick="markPatientSeen('${item.id}')">Mark Seen</button>
                     </div>
@@ -1192,7 +1213,7 @@
                 recWaitEl.innerHTML = waitingItems.map(item => `
                     <div class="queue-item">
                         <span class="token-pill">#${item.token}</span>
-                        <strong>${item.name}</strong> (${item.mobile}) — <span class="muted">${item.problem}</span>
+                        <strong>${item.name || "Patient"}</strong> (${item.mobile || "-"}) — <span class="muted">${item.problem || "-"}</span>
                     </div>
                 `).join("");
             }
