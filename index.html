@@ -252,6 +252,30 @@
             outline: none;
         }
 
+        .upcoming-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .upcoming-bar input[type="date"] {
+            padding: 8px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            background: #fff;
+        }
+
+        .upcoming-item {
+            padding: 12px;
+            border-radius: 10px;
+            background: #f0fdfa;
+            border: 1px solid #99f6e4;
+            margin-bottom: 10px;
+        }
+
         .grid-2 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -426,6 +450,19 @@
                     <button type="button" class="btn btn-sm" style="background:#64748b;" onclick="clearDoctorMobileLookup()">Clear</button>
                 </div>
                 <div class="token-banner" id="docActionBanner"></div>
+            </div>
+
+            <!-- DATE WISE AANE WALE PATIENTS (AAJ YA KISI BHI DATE KE LIYE) -->
+            <div class="card">
+                <h3 id="scheduledPatientsHeading">Aaj Aane Wale Patients (Schedule / Next Date)</h3>
+                <div class="upcoming-bar">
+                    <label for="scheduleDateFilter" style="font-size:0.86rem; font-weight:600; color:#334155;">Date Chunein:</label>
+                    <input type="date" id="scheduleDateFilter" onchange="renderScheduledPatientsByDate()">
+                    <button type="button" class="btn btn-sm btn-blue" onclick="setScheduleDateToToday()">Aaj Ki Date</button>
+                </div>
+                <div id="scheduledPatientsList">
+                    <p class="muted">Is date ke liye koi patient schedule nahi hai.</p>
+                </div>
             </div>
 
             <div class="grid-2">
@@ -629,9 +666,16 @@
         let activeDoctorPatientId = null;
         let nextTokenCounter = 1;
 
-        const todayISO = () => new Date().toISOString().split("T")[0];
+        function getLocalTodayISO() {
+            const now = new Date();
+            const offsetMs = now.getTimezoneOffset() * 60000;
+            return new Date(now.getTime() - offsetMs).toISOString().split("T")[0];
+        }
+
+        const todayISO = () => getLocalTodayISO();
         document.getElementById("docNewVisitDate").value = todayISO();
         document.getElementById("docUpdVisitDate").value = todayISO();
+        document.getElementById("scheduleDateFilter").value = todayISO();
 
         function normalizeEmail(email = "") {
             return String(email || "").trim().toLowerCase().replace(/\s+/g, "");
@@ -913,6 +957,71 @@
             clearClinicSession();
             showLoginView();
         });
+
+        function getLatestNextDateForPatient(patient) {
+            const pVisits = visitsCache.filter(v => v.patientId === patient.id);
+            const latestVisit = pVisits[0];
+            return String(latestVisit?.nextDate || patient.nextDate || "").trim();
+        }
+
+        window.setScheduleDateToToday = function() {
+            document.getElementById("scheduleDateFilter").value = todayISO();
+            renderScheduledPatientsByDate();
+        };
+
+        function renderScheduledPatientsByDate() {
+            const listEl = document.getElementById("scheduledPatientsList");
+            const headingEl = document.getElementById("scheduledPatientsHeading");
+            const inputEl = document.getElementById("scheduleDateFilter");
+            if (!listEl || !inputEl) return;
+
+            const targetDate = inputEl.value || todayISO();
+            const isToday = targetDate === todayISO();
+            if (headingEl) {
+                headingEl.textContent = isToday
+                    ? `Aaj (${targetDate}) Aane Wale Patients`
+                    : `${targetDate} Ko Aane Wale Patients`;
+            }
+
+            const duePatients = patientsCache.filter(p => getLatestNextDateForPatient(p) === targetDate);
+
+            if (!duePatients.length) {
+                listEl.innerHTML = `<p class="muted">${isToday ? "Aaj" : targetDate + " ko"} kisi patient ki next date nahi hai.</p>`;
+                return;
+            }
+
+            listEl.innerHTML = duePatients.map(p => {
+                const displayName = p.name || p.patientName || p.fullName || "Patient";
+                const displayMobile = p.mobile || p.phone || "-";
+                const displayAge = p.age ? `${p.age} Saal` : "-";
+                const displayAddress = p.address || "-";
+                const pVisits = visitsCache.filter(v => v.patientId === p.id);
+                const latest = pVisits[0];
+                const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
+                const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
+                const bill = latest?.bill ?? p.lastBill ?? "-";
+                const nextDate = getLatestNextDateForPatient(p) || "-";
+
+                return `
+                    <div class="upcoming-item">
+                        <div class="biodata-top">
+                            <div>
+                                <strong>${displayName}</strong> <span class="muted">(${displayMobile})</span>
+                                | <strong>Age:</strong> ${displayAge}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
+                        </div>
+                        <div class="muted">
+                            <strong>Address:</strong> ${displayAddress} | <strong>Next Date:</strong> ${nextDate}
+                        </div>
+                        <div class="muted">
+                            <strong>Last Visit:</strong> ${lastVisit} | <strong>Last Bill:</strong> ₹${bill}
+                        </div>
+                        <div style="font-size:0.86rem; margin-top:3px;"><strong>Last Treatment:</strong> ${treatment}</div>
+                    </div>
+                `;
+            }).join("");
+        }
 
         function showDocBannerHtml(html) {
             const b = document.getElementById("docActionBanner");
@@ -1287,6 +1396,7 @@
                 `).join("");
             }
 
+            renderScheduledPatientsByDate();
             renderLastPatientsBiodata();
             if (activeDoctorPatientId) {
                 const activePat = patientsCache.find(p => p.id === activeDoctorPatientId);
