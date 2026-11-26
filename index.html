@@ -18,6 +18,7 @@
             --border: #cbd5e1;
             --danger: #dc2626;
             --success: #15803d;
+            --whatsapp: #16a34a;
         }
 
         * {
@@ -122,6 +123,8 @@
             font-weight: 600;
             cursor: pointer;
             transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .btn-primary {
@@ -156,6 +159,12 @@
         .btn-success {
             background: var(--success);
             color: #fff;
+        }
+
+        .btn-wa {
+            background: var(--whatsapp);
+            color: #fff;
+            margin-top: 8px;
         }
 
         .error-text {
@@ -421,7 +430,6 @@
             </div>
 
             <div class="grid-2">
-                <!-- Left Column: Existing Patient History + Update OR New Patient Add Form -->
                 <div>
                     <div class="card" id="doctorLookupResultCard">
                         <h3 id="lookupCardTitle">Mobile Search Result</h3>
@@ -430,7 +438,6 @@
                         </div>
                     </div>
 
-                    <!-- New Patient Direct Save Form (Exact Order Requested) -->
                     <div class="card hidden" id="doctorNewPatientCard">
                         <h3>Naya Patient Add Karein (Direct Save — No Waiting)</h3>
                         <form id="docNewPatientForm" action="javascript:void(0);">
@@ -443,31 +450,38 @@
                                 <input type="tel" id="docNewMobile" required placeholder="10 digit mobile number">
                             </div>
                             <div class="form-group">
-                                <label>3. Kis Date Ka Aaya Hai (Visit Date) *</label>
+                                <label>3. Address (Pata) *</label>
+                                <input type="text" id="docNewAddress" required placeholder="Gaon / Mohalla / Shehar">
+                            </div>
+                            <div class="form-group">
+                                <label>4. Kis Date Ka Aaya Hai (Visit Date) *</label>
                                 <input type="date" id="docNewVisitDate" required>
                             </div>
                             <div class="form-group">
-                                <label>4. Kya Treatment Hua Hai *</label>
+                                <label>5. Kya Treatment Hua Hai *</label>
                                 <textarea id="docNewTreatment" rows="2" required placeholder="Kiye gaye treatment ki detail"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>5. Bill Kitna Bana Hai (₹) *</label>
+                                <label>6. Bill Kitna Bana Hai (₹) *</label>
                                 <input type="number" id="docNewBill" min="0" required placeholder="0">
                             </div>
                             <div class="form-group">
-                                <label>6. Next Date Kab Ki Hai *</label>
+                                <label>7. Next Date Kab Ki Hai *</label>
                                 <input type="date" id="docNewNextDate" required>
                             </div>
                             <button type="submit" class="btn btn-primary" id="docSaveNewPatientBtn">Save Patient</button>
                         </form>
                     </div>
 
-                    <!-- Existing Patient History + Update Form -->
                     <div class="card hidden" id="doctorExistingUpdateCard">
                         <h3>Patient History & New Date / Visit Update</h3>
                         <div id="docExistingHistoryBox" style="margin-bottom:14px;"></div>
 
                         <form id="docUpdateExistingForm" action="javascript:void(0);">
+                            <div class="form-group">
+                                <label>Address (Pata)</label>
+                                <input type="text" id="docUpdAddress" placeholder="Gaon / Mohalla / Shehar">
+                            </div>
                             <div class="form-group">
                                 <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
                                 <input type="date" id="docUpdVisitDate" required>
@@ -489,7 +503,6 @@
                     </div>
                 </div>
 
-                <!-- Right Column: Last Patients Biodata + Waiting/Seen -->
                 <div>
                     <div class="card">
                         <h3>Last Patients Biodata (Haal Ke Mareez)</h3>
@@ -589,6 +602,8 @@
             "mohitbhargava0001@gmail.com"
         ];
 
+        const WHATSAPP_GROUP_INVITE_LINK = "";
+
         const SESSION_STORAGE_KEY = "fhcc_clinic_session_v1";
         const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
 
@@ -618,6 +633,33 @@
 
         function normalizeMobile(mob = "") {
             return String(mob || "").replace(/\D/g, "");
+        }
+
+        function formatWhatsAppNumber(mob = "") {
+            const digits = normalizeMobile(mob);
+            if (!digits) return "";
+            return digits.length === 10 ? "91" + digits : digits;
+        }
+
+        function buildWhatsAppShareUrl(name = "", mobile = "", nextDate = "") {
+            const waPhone = formatWhatsAppNumber(mobile);
+            if (!waPhone) return "";
+            const lines = [
+                `Namaste ${name || "Patient"}, Family Health Care Centre mein aapka swagat hai.`
+            ];
+            if (nextDate) {
+                lines.push(`Aapki next appointment date: ${nextDate}.`);
+            }
+            if (WHATSAPP_GROUP_INVITE_LINK) {
+                lines.push(`Clinic WhatsApp Group join karne ke liye link: ${WHATSAPP_GROUP_INVITE_LINK}`);
+            }
+            return `https://wa.me/${waPhone}?text=${encodeURIComponent(lines.join("\n"))}`;
+        }
+
+        function renderWhatsAppActionHtml(name = "", mobile = "", nextDate = "") {
+            const url = buildWhatsAppShareUrl(name, mobile, nextDate);
+            if (!url) return "";
+            return `<br><a href="${url}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-wa">WhatsApp Message / Group Invite Bhejein</a>`;
         }
 
         function hasValidPatientIdentity(p) {
@@ -866,11 +908,11 @@
             showLoginView();
         });
 
-        function showDocBanner(msg) {
+        function showDocBannerHtml(html) {
             const b = document.getElementById("docActionBanner");
             if (!b) return;
             b.style.display = "block";
-            b.textContent = msg;
+            b.innerHTML = html;
         }
 
         function openExistingPatientPanel(patient) {
@@ -881,13 +923,14 @@
 
             const displayName = patient.name || patient.patientName || patient.fullName || "Patient";
             const displayMobile = patient.mobile || patient.phone || "-";
+            const displayAddress = patient.address || "-";
             const pVisits = visitsCache.filter(v => v.patientId === patient.id);
             const latestVisit = pVisits[0];
 
             document.getElementById("doctorLookupBody").innerHTML = `
                 <div class="patient-summary">
                     <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile}</div>
-                    <div><strong>Age/Gender:</strong> ${patient.age || "-"} / ${patient.gender || "-"} | <strong>Address:</strong> ${patient.address || "-"}</div>
+                    <div><strong>Address:</strong> ${displayAddress}</div>
                     <div><strong>Problem / Treatment:</strong> ${patient.problem || patient.symptoms || latestVisit?.treatment || "-"}</div>
                     <div><strong>Last Visit:</strong> ${latestVisit?.visitDate || patient.lastVisitDate || "-"} | <strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
                 </div>
@@ -902,6 +945,7 @@
                 `).join("")
                 : `<p class="muted">Pichhli visit entries yahan dikhengi. Neeche se naya visit / next date update karein.</p>`;
 
+            document.getElementById("docUpdAddress").value = patient.address || "";
             document.getElementById("docUpdVisitDate").value = todayISO();
             if (latestVisit?.nextDate) {
                 document.getElementById("docUpdNextDate").value = latestVisit.nextDate;
@@ -960,12 +1004,13 @@
             openExistingPatientPanel(pat);
         };
 
-        // Doctor: New Patient Direct Save (No Waiting List)
+        // Doctor: New Patient Direct Save (No Waiting List) + Address + WhatsApp Action
         document.getElementById("docNewPatientForm").addEventListener("submit", async (e) => {
             e.preventDefault();
 
             const name = document.getElementById("docNewName").value.trim();
             const mobile = document.getElementById("docNewMobile").value.trim();
+            const address = document.getElementById("docNewAddress").value.trim();
             const visitDate = document.getElementById("docNewVisitDate").value;
             const treatment = document.getElementById("docNewTreatment").value.trim();
             const bill = Number(document.getElementById("docNewBill").value || 0);
@@ -978,7 +1023,7 @@
                 mobile,
                 age: "",
                 gender: "",
-                address: "",
+                address,
                 problem: treatment,
                 lastVisitDate: visitDate,
                 lastTreatment: treatment,
@@ -1010,15 +1055,19 @@
 
             renderAllViews();
             openExistingPatientPanel({ id: patientDocId, ...patientData });
-            showDocBanner(`Naya patient "${name}" save ho gaya (Waiting list mein nahi bheja gaya). Next Date: ${nextDate}`);
+            showDocBannerHtml(
+                `Naya patient "${name}" save ho gaya (Waiting list mein nahi bheja gaya). Next Date: ${nextDate}` +
+                renderWhatsAppActionHtml(name, mobile, nextDate)
+            );
         });
 
-        // Doctor: Existing Patient History + New Date Update
+        // Doctor: Existing Patient History + Address + New Date Update
         document.getElementById("docUpdateExistingForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const pat = patientsCache.find(p => p.id === activeDoctorPatientId);
             if (!pat) return;
 
+            const updatedAddress = document.getElementById("docUpdAddress").value.trim();
             const visitDate = document.getElementById("docUpdVisitDate").value;
             const treatment = document.getElementById("docUpdTreatment").value.trim();
             const bill = Number(document.getElementById("docUpdBill").value || 0);
@@ -1037,6 +1086,7 @@
             visitsCache.unshift({ id: visitId, ...visitData });
             await upsertDoc("visits", visitId, visitData);
 
+            if (updatedAddress) pat.address = updatedAddress;
             pat.lastVisitDate = visitDate;
             pat.lastTreatment = treatment;
             pat.lastBill = bill;
@@ -1048,10 +1098,15 @@
 
             renderAllViews();
             openExistingPatientPanel(pat);
-            showDocBanner(`"${pat.name || pat.patientName || "Patient"}" ki history aur Next Date (${nextDate}) update ho gayi.`);
+            const patName = pat.name || pat.patientName || "Patient";
+            const patMob = pat.mobile || pat.phone || "";
+            showDocBannerHtml(
+                `"${patName}" ki history aur Next Date (${nextDate}) update ho gayi.` +
+                renderWhatsAppActionHtml(patName, patMob, nextDate)
+            );
         });
 
-        // Reception Tab Switch & Add Patient
+        // Reception Tab Switch & Add Patient + WhatsApp Action
         window.switchMainTab = function(tab) {
             const addTab = document.getElementById("addTabContent");
             const histTab = document.getElementById("historyTabContent");
@@ -1107,7 +1162,9 @@
 
             const tokenBox = document.getElementById("tokenResultBox");
             tokenBox.style.display = "block";
-            tokenBox.textContent = `Patient save hua! Token Number: #${tokenNumber}`;
+            tokenBox.innerHTML =
+                `Patient save hua! Token Number: #${tokenNumber}` +
+                renderWhatsAppActionHtml(patientData.name, patientData.mobile, "");
 
             document.getElementById("addPatientForm").reset();
             renderAllViews();
@@ -1138,6 +1195,7 @@
             resEl.innerHTML = `
                 <div class="patient-summary">
                     <div><strong>Naam:</strong> ${found.name || found.patientName || "Patient"} | <strong>Mobile:</strong> ${found.mobile || found.phone || "-"}</div>
+                    <div><strong>Address:</strong> ${found.address || "-"}</div>
                     <div><strong>Problem:</strong> ${found.problem || found.symptoms || "-"} | <strong>Next Date:</strong> ${found.nextDate || "-"}</div>
                 </div>
                 ${pVisits.map(v => `
@@ -1165,6 +1223,7 @@
             box.innerHTML = validPatients.map(p => {
                 const displayName = p.name || p.patientName || p.fullName || "Patient";
                 const displayMobile = p.mobile || p.phone || "-";
+                const displayAddress = p.address || "-";
                 const pVisits = visitsCache.filter(v => v.patientId === p.id);
                 const latest = pVisits[0];
                 const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
@@ -1178,6 +1237,7 @@
                             <div><strong>${displayName}</strong> <span class="muted">(${displayMobile})</span></div>
                             <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
                         </div>
+                        <div class="muted">Address: <strong>${displayAddress}</strong></div>
                         <div class="muted">
                             Visit: <strong>${lastVisit}</strong> | Bill: <strong>₹${bill}</strong> | Next Date: <strong>${nextDate}</strong>
                         </div>
