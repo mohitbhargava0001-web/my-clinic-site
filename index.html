@@ -41,8 +41,8 @@
             width: 100%;
             max-width: 1200px;
             text-align: center;
-            padding: 20px 16px;
-            margin-bottom: 18px;
+            padding: 18px 16px;
+            margin-bottom: 16px;
             background: rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(8px);
             border-radius: 16px;
@@ -51,7 +51,7 @@
         }
 
         .top-header h1 {
-            font-size: 1.65rem;
+            font-size: 1.55rem;
             font-weight: 700;
         }
 
@@ -85,7 +85,7 @@
         }
 
         .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 13px;
         }
 
         .form-group label {
@@ -207,26 +207,38 @@
             margin-left: 8px;
         }
 
-        .main-tabs {
-            display: flex;
-            gap: 10px;
+        .doc-search-bar {
+            background: #ffffff;
+            border: 1.5px solid #99f6e4;
+            border-radius: 14px;
+            padding: 14px 16px;
             margin-bottom: 18px;
-            flex-wrap: wrap;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
         }
 
-        .tab-btn {
-            padding: 10px 18px;
-            border-radius: 10px;
+        .doc-search-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8fafc;
             border: 1.5px solid var(--primary);
-            background: #fff;
-            color: var(--primary);
-            font-weight: 600;
-            cursor: pointer;
+            border-radius: 12px;
+            padding: 6px 12px;
         }
 
-        .tab-btn.active {
-            background: var(--primary);
-            color: #fff;
+        .search-icon {
+            font-size: 1.15rem;
+            color: var(--primary-dark);
+            user-select: none;
+        }
+
+        .doc-search-box input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 0.96rem;
+            padding: 6px 4px;
+            outline: none;
         }
 
         .grid-2 {
@@ -241,61 +253,51 @@
             padding: 18px;
             box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
             border: 1px solid #e2e8f0;
+            margin-bottom: 16px;
         }
 
         .card h3 {
             color: var(--primary);
-            font-size: 1.08rem;
+            font-size: 1.06rem;
             margin-bottom: 12px;
         }
 
         .token-banner {
             display: none;
-            margin-top: 14px;
-            padding: 14px;
+            margin-top: 12px;
+            padding: 12px 14px;
             border-radius: 12px;
             background: #ecfdf5;
             border: 1.5px solid #10b981;
             color: #065f46;
             font-weight: 600;
+            font-size: 0.9rem;
         }
 
-        .queue-item, .seen-item {
+        .queue-item, .seen-item, .biodata-item {
             padding: 12px;
             border-radius: 10px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             margin-bottom: 10px;
+        }
+
+        .biodata-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
+            margin-bottom: 4px;
         }
 
         .token-pill {
             background: var(--primary);
             color: #fff;
             font-weight: 700;
-            padding: 5px 10px;
+            padding: 4px 10px;
             border-radius: 8px;
-            font-size: 0.85rem;
-        }
-
-        .search-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
-        }
-
-        .search-row input {
-            flex: 1;
-            min-width: 200px;
-            padding: 10px 12px;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            font-size: 0.92rem;
+            font-size: 0.82rem;
         }
 
         .patient-summary {
@@ -321,12 +323,34 @@
             font-weight: 700;
             color: var(--primary-dark);
             margin-bottom: 6px;
-            font-size: 0.95rem;
+            font-size: 0.94rem;
+        }
+
+        .main-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1.5px solid var(--primary);
+            background: #fff;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
         }
 
         .muted {
             color: var(--muted);
-            font-size: 0.85rem;
+            font-size: 0.84rem;
         }
 
         .hidden {
@@ -379,67 +403,154 @@
             <button class="btn btn-danger btn-sm" id="logoutBtn">Logout</button>
         </div>
 
-        <div class="main-tabs">
-            <button class="tab-btn active" id="tabAddBtn" onclick="switchMainTab('add')">Add New Patient</button>
-            <button class="tab-btn" id="tabHistoryBtn" onclick="switchMainTab('history')">Patient History</button>
-        </div>
+        <!-- DOCTOR INSTANT MOBILE SEARCH + LAST PATIENTS BIODATA -->
+        <div id="doctorInstantSection" class="hidden">
+            <div class="doc-search-bar">
+                <label for="docTopMobileSearch" style="display:block; font-size:0.85rem; font-weight:600; color:#0f766e; margin-bottom:6px;">
+                    Patient Mobile Number Search (Purana Record ya Naya Patient Add Karein)
+                </label>
+                <div class="doc-search-box">
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                    <input type="tel" id="docTopMobileSearch" placeholder="Patient ka mobile number daalein..." oninput="handleDoctorMobileLookup()">
+                    <button type="button" class="btn btn-sm btn-blue" onclick="handleDoctorMobileLookup()">Search</button>
+                    <button type="button" class="btn btn-sm" style="background:#64748b;" onclick="clearDoctorMobileLookup()">Clear</button>
+                </div>
+                <div class="token-banner" id="docActionBanner"></div>
+            </div>
 
-        <div id="addTabContent">
             <div class="grid-2">
-                <div class="card">
-                    <h3 id="addFormHeading">Add New Patient</h3>
-                    <form id="addPatientForm" action="javascript:void(0);">
-                        <div class="form-group">
-                            <label>Patient Name (Mareez ka Naam) *</label>
-                            <input type="text" id="pName" required placeholder="Poora naam likhein">
+                <!-- Left Column: Existing Patient History + Update OR New Patient Add Form -->
+                <div>
+                    <div class="card" id="doctorLookupResultCard">
+                        <h3 id="lookupCardTitle">Mobile Search Result</h3>
+                        <div id="doctorLookupBody">
+                            <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh history aur update form aayega, naya hoga toh Add Patient form khulega.</p>
                         </div>
-                        <div class="form-group">
-                            <label>Mobile Number *</label>
-                            <input type="tel" id="pMobile" required placeholder="10 digit mobile number">
-                        </div>
-                        <div class="form-group">
-                            <label>Age (Umra) *</label>
-                            <input type="number" id="pAge" required min="1" max="120" placeholder="Saal mein umra">
-                        </div>
-                        <div class="form-group">
-                            <label>Gender (Ling)</label>
-                            <select id="pGender">
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Address (Pata) *</label>
-                            <input type="text" id="pAddress" required placeholder="Gaon / Mohalla / Shehar">
-                        </div>
-                        <div class="form-group">
-                            <label>Kya Dikkat Hai (Problem / Symptoms) *</label>
-                            <textarea id="pProblem" rows="3" required placeholder="Mareez ki samasya ya lakshan likhein"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary" id="savePatientBtn">Save & Add to Waiting</button>
-                    </form>
+                    </div>
 
-                    <div class="token-banner" id="tokenResultBox"></div>
+                    <!-- New Patient Direct Save Form (Exact Order Requested) -->
+                    <div class="card hidden" id="doctorNewPatientCard">
+                        <h3>Naya Patient Add Karein (Direct Save — No Waiting)</h3>
+                        <form id="docNewPatientForm" action="javascript:void(0);">
+                            <div class="form-group">
+                                <label>1. Patient ka Naam *</label>
+                                <input type="text" id="docNewName" required placeholder="Patient ka poora naam">
+                            </div>
+                            <div class="form-group">
+                                <label>2. Mobile Number *</label>
+                                <input type="tel" id="docNewMobile" required placeholder="10 digit mobile number">
+                            </div>
+                            <div class="form-group">
+                                <label>3. Kis Date Ka Aaya Hai (Visit Date) *</label>
+                                <input type="date" id="docNewVisitDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label>4. Kya Treatment Hua Hai *</label>
+                                <textarea id="docNewTreatment" rows="2" required placeholder="Kiye gaye treatment ki detail"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>5. Bill Kitna Bana Hai (₹) *</label>
+                                <input type="number" id="docNewBill" min="0" required placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label>6. Next Date Kab Ki Hai *</label>
+                                <input type="date" id="docNewNextDate" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="docSaveNewPatientBtn">Save Patient</button>
+                        </form>
+                    </div>
+
+                    <!-- Existing Patient History + Update Form -->
+                    <div class="card hidden" id="doctorExistingUpdateCard">
+                        <h3>Patient History & New Date / Visit Update</h3>
+                        <div id="docExistingHistoryBox" style="margin-bottom:14px;"></div>
+
+                        <form id="docUpdateExistingForm" action="javascript:void(0);">
+                            <div class="form-group">
+                                <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
+                                <input type="date" id="docUpdVisitDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Kya Treatment Hua Hai *</label>
+                                <textarea id="docUpdTreatment" rows="2" required placeholder="Naya treatment / update likhein"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Bill Kitna Bana Hai (₹) *</label>
+                                <input type="number" id="docUpdBill" min="0" required placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Next Date Kab Ki Hai (New Appointment Date) *</label>
+                                <input type="date" id="docUpdNextDate" required>
+                            </div>
+                            <button type="submit" class="btn btn-success" style="width:100%; padding:11px;">Update History & Next Date</button>
+                        </form>
+                    </div>
                 </div>
 
-                <div id="doctorSidePanel" class="hidden">
-                    <div class="card" style="margin-bottom: 18px;">
-                        <h3>Waiting List (<span id="waitingCountDoc">0</span> Patients)</h3>
-                        <div id="doctorWaitingList">
-                            <p class="muted">Abhi waiting mein koi patient nahi hai.</p>
+                <!-- Right Column: Last Patients Biodata + Waiting/Seen -->
+                <div>
+                    <div class="card">
+                        <h3>Last Patients Biodata (Haal Ke Mareez)</h3>
+                        <div id="lastPatientsBiodataList">
+                            <p class="muted">Abhi koi patient record nahi hai.</p>
                         </div>
                     </div>
 
                     <div class="card">
-                        <h3>Last Seen Patients (Jo Dekhe Gaye)</h3>
-                        <div id="lastSeenList">
-                            <p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>
+                        <h3>Waiting List (<span id="waitingCountDoc">0</span>)</h3>
+                        <div id="doctorWaitingList">
+                            <p class="muted">Abhi waiting mein koi patient nahi hai.</p>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div id="receptionSidePanel" class="hidden">
+        <!-- RECEPTION VIEW -->
+        <div id="receptionSection" class="hidden">
+            <div class="main-tabs">
+                <button class="tab-btn active" id="tabAddBtn" onclick="switchMainTab('add')">Add New Patient</button>
+                <button class="tab-btn" id="tabHistoryBtn" onclick="switchMainTab('history')">Patient History</button>
+            </div>
+
+            <div id="addTabContent">
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>Add New Patient</h3>
+                        <form id="addPatientForm" action="javascript:void(0);">
+                            <div class="form-group">
+                                <label>Patient Name (Mareez ka Naam) *</label>
+                                <input type="text" id="pName" required placeholder="Poora naam likhein">
+                            </div>
+                            <div class="form-group">
+                                <label>Mobile Number *</label>
+                                <input type="tel" id="pMobile" required placeholder="10 digit mobile number">
+                            </div>
+                            <div class="form-group">
+                                <label>Age (Umra) *</label>
+                                <input type="number" id="pAge" required min="1" max="120" placeholder="Saal mein umra">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender (Ling)</label>
+                                <select id="pGender">
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Address (Pata) *</label>
+                                <input type="text" id="pAddress" required placeholder="Gaon / Mohalla / Shehar">
+                            </div>
+                            <div class="form-group">
+                                <label>Kya Dikkat Hai (Problem / Symptoms) *</label>
+                                <textarea id="pProblem" rows="3" required placeholder="Mareez ki samasya ya lakshan likhein"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="savePatientBtn">Save & Add to Waiting</button>
+                        </form>
+                        <div class="token-banner" id="tokenResultBox"></div>
+                    </div>
+
                     <div class="card">
                         <h3>Current Waiting List (<span id="waitingCountRec">0</span> Patients)</h3>
                         <p class="muted" style="margin-bottom: 10px;">Mareez ko unka waiting number yahan se batayein:</p>
@@ -449,54 +560,17 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div id="historyTabContent" class="hidden">
-            <div class="grid-2">
+            <div id="historyTabContent" class="hidden">
                 <div class="card">
                     <h3>Patient History (Mobile Number Se Search Karein)</h3>
-                    <div class="search-row">
-                        <input type="tel" id="searchMobileInput" placeholder="Mobile number daalein...">
+                    <div class="search-row" style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                        <input type="tel" id="searchMobileInput" placeholder="Mobile number daalein..." style="flex:1; min-width:200px; padding:10px 12px; border:1.5px solid var(--border); border-radius:10px;">
                         <button class="btn btn-sm btn-blue" onclick="searchPatientByMobile()">Search</button>
                     </div>
-
-                    <div id="allPatientsQuickList" style="margin-bottom: 12px;"></div>
-                    <div id="patientHistoryResult">
-                        <p class="muted">Kisi patient ka mobile number search karein ya neeche list se chunein.</p>
+                    <div id="receptionHistoryResult">
+                        <p class="muted">Kisi patient ka mobile number search karein.</p>
                     </div>
-                </div>
-
-                <div class="card" id="doctorTreatmentCard">
-                    <h3>Doctor: Visit Treatment, Medicine/Item, Bill & Next Date</h3>
-                    <p class="muted" id="selectedPatientBanner" style="margin-bottom: 12px;">Pehle koi patient select karein.</p>
-
-                    <form id="visitUpdateForm" action="javascript:void(0);">
-                        <div class="form-group">
-                            <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
-                            <input type="date" id="visitDate" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Kya Ilaaj Kiya (Treatment) *</label>
-                            <textarea id="visitTreatment" rows="2" required placeholder="Kiye gaye ilaaj / therapy ki detail"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Kya Cheez Di Gayi (Medicine / Item / Kit)</label>
-                            <input type="text" id="visitItems" placeholder="Jo cheez/dawa/kit patient ko di gayi">
-                        </div>
-                        <div class="form-group">
-                            <label>Kitna Bill Bana (Bill Amount ₹) *</label>
-                            <input type="number" id="visitBill" min="0" required placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Last Visit Date (Pichhli Tarikh)</label>
-                            <input type="date" id="lastVisitDateInput">
-                        </div>
-                        <div class="form-group">
-                            <label>Next Appointment Date (Agli Tarikh) *</label>
-                            <input type="date" id="nextDateInput" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary" id="saveVisitBtn">Save Visit & Update Dates</button>
-                    </form>
                 </div>
             </div>
         </div>
@@ -529,37 +603,29 @@
         let patientsCache = [];
         let appointmentsCache = [];
         let visitsCache = [];
-        let selectedPatientId = null;
+        let activeDoctorPatientId = null;
         let nextTokenCounter = 1;
 
         const todayISO = () => new Date().toISOString().split("T")[0];
-        document.getElementById("visitDate").value = todayISO();
+        document.getElementById("docNewVisitDate").value = todayISO();
+        document.getElementById("docUpdVisitDate").value = todayISO();
 
         function normalizeEmail(email = "") {
             return String(email || "").trim().toLowerCase().replace(/\s+/g, "");
         }
 
+        function normalizeMobile(mob = "") {
+            return String(mob || "").replace(/\D/g, "");
+        }
+
         function resolveRoleFromEmail(email = "") {
             const cleanEmail = normalizeEmail(email);
             const doctorList = DOCTOR_EMAILS.map(normalizeEmail).filter(Boolean);
-            if (doctorList.includes(cleanEmail)) {
-                return "doctor";
-            }
-            return "reception";
-        }
-
-        function updateSaveButtonLabel() {
-            const btn = document.getElementById("savePatientBtn");
-            if (!btn) return;
-            btn.textContent = currentRole === "doctor"
-                ? "Save Patient Directly (No Waiting)"
-                : "Save & Add to Waiting";
+            return doctorList.includes(cleanEmail) ? "doctor" : "reception";
         }
 
         function showDashboardView(role, email) {
-            currentRole = resolveRoleFromEmail(email) === "doctor" || role === "doctor"
-                ? (resolveRoleFromEmail(email) === "doctor" ? "doctor" : "reception")
-                : "reception";
+            currentRole = resolveRoleFromEmail(email) === "doctor" ? "doctor" : (role === "doctor" ? "doctor" : "reception");
             isLoggedInSession = true;
 
             document.getElementById("loggedUserEmail").textContent =
@@ -568,20 +634,15 @@
             if (currentRole === "doctor") {
                 document.getElementById("roleTitle").textContent = "Doctor Dashboard";
                 document.getElementById("roleBadge").textContent = "DOCTOR";
-                document.getElementById("addFormHeading").textContent = "Add Patient (Doctor)";
-                document.getElementById("doctorSidePanel").classList.remove("hidden");
-                document.getElementById("receptionSidePanel").classList.add("hidden");
-                document.getElementById("doctorTreatmentCard").classList.remove("hidden");
+                document.getElementById("doctorInstantSection").classList.remove("hidden");
+                document.getElementById("receptionSection").classList.add("hidden");
             } else {
                 document.getElementById("roleTitle").textContent = "Reception Dashboard";
                 document.getElementById("roleBadge").textContent = "RECEPTION";
-                document.getElementById("addFormHeading").textContent = "Add New Patient";
-                document.getElementById("receptionSidePanel").classList.remove("hidden");
-                document.getElementById("doctorSidePanel").classList.add("hidden");
-                document.getElementById("doctorTreatmentCard").classList.add("hidden");
+                document.getElementById("receptionSection").classList.remove("hidden");
+                document.getElementById("doctorInstantSection").classList.add("hidden");
             }
 
-            updateSaveButtonLabel();
             document.getElementById("loginSection").classList.add("hidden");
             document.getElementById("dashboardSection").style.display = "block";
         }
@@ -695,7 +756,7 @@
             ]);
             patientsCache = pats.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
             appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
-            visitsCache = visits.sort((a, b) => (b.visitDate || "").localeCompare(a.visitDate || ""));
+            visitsCache = visits.sort((a, b) => (b.createdAt || b.visitDate || "").localeCompare(a.createdAt || a.visitDate || ""));
             const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
             nextTokenCounter = maxToken + 1;
             renderAllViews();
@@ -794,6 +855,190 @@
             showLoginView();
         });
 
+        function showDocBanner(msg) {
+            const b = document.getElementById("docActionBanner");
+            if (!b) return;
+            b.style.display = "block";
+            b.textContent = msg;
+        }
+
+        function openExistingPatientPanel(patient) {
+            activeDoctorPatientId = patient.id;
+            document.getElementById("doctorNewPatientCard").classList.add("hidden");
+            document.getElementById("doctorExistingUpdateCard").classList.remove("hidden");
+            document.getElementById("lookupCardTitle").textContent = "Purana Patient Mila — History & Update";
+
+            const pVisits = visitsCache.filter(v => v.patientId === patient.id);
+            const latestVisit = pVisits[0];
+
+            document.getElementById("doctorLookupBody").innerHTML = `
+                <div class="patient-summary">
+                    <div><strong>Naam:</strong> ${patient.name} | <strong>Mobile:</strong> ${patient.mobile}</div>
+                    <div><strong>Age/Gender:</strong> ${patient.age || "-"} / ${patient.gender || "-"} | <strong>Address:</strong> ${patient.address || "-"}</div>
+                    <div><strong>Problem / Treatment:</strong> ${patient.problem || latestVisit?.treatment || "-"}</div>
+                    <div><strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
+                </div>
+            `;
+
+            document.getElementById("docExistingHistoryBox").innerHTML = pVisits.length
+                ? pVisits.map(v => `
+                    <div class="visit-card">
+                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0} | Next Date: ${v.nextDate || "-"}</div>
+                        <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
+                    </div>
+                `).join("")
+                : `<p class="muted">Pichhli visit entries yahan dikhengi. Neeche se naya visit / next date update karein.</p>`;
+
+            document.getElementById("docUpdVisitDate").value = todayISO();
+            if (latestVisit?.nextDate) {
+                document.getElementById("docUpdNextDate").value = latestVisit.nextDate;
+            }
+        }
+
+        function openNewPatientPanel(mobileDigits) {
+            activeDoctorPatientId = null;
+            document.getElementById("doctorExistingUpdateCard").classList.add("hidden");
+            document.getElementById("doctorNewPatientCard").classList.remove("hidden");
+            document.getElementById("lookupCardTitle").textContent = "Naya Patient (Record Nahi Mila)";
+            document.getElementById("doctorLookupBody").innerHTML = `
+                <p class="muted">Mobile number <strong>${mobileDigits || ""}</strong> ke liye koi purana record nahi mila. Neeche <strong>Add Patient</strong> form mein details bhar kar save karein.</p>
+            `;
+            if (mobileDigits) {
+                document.getElementById("docNewMobile").value = mobileDigits;
+            }
+            document.getElementById("docNewVisitDate").value = todayISO();
+        }
+
+        window.handleDoctorMobileLookup = function() {
+            const rawInput = document.getElementById("docTopMobileSearch").value;
+            const digits = normalizeMobile(rawInput);
+
+            if (!digits) {
+                activeDoctorPatientId = null;
+                document.getElementById("doctorNewPatientCard").classList.add("hidden");
+                document.getElementById("doctorExistingUpdateCard").classList.add("hidden");
+                document.getElementById("lookupCardTitle").textContent = "Mobile Search Result";
+                document.getElementById("doctorLookupBody").innerHTML = `
+                    <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh history aur update form aayega, naya hoga toh Add Patient form khulega.</p>
+                `;
+                return;
+            }
+
+            const matched = patientsCache.find(p => normalizeMobile(p.mobile) === digits)
+                || patientsCache.find(p => normalizeMobile(p.mobile).includes(digits));
+
+            if (matched) {
+                openExistingPatientPanel(matched);
+            } else {
+                openNewPatientPanel(digits);
+            }
+        };
+
+        window.clearDoctorMobileLookup = function() {
+            document.getElementById("docTopMobileSearch").value = "";
+            document.getElementById("docActionBanner").style.display = "none";
+            handleDoctorMobileLookup();
+        };
+
+        window.selectPatientByIdForDoctor = function(patientId) {
+            const pat = patientsCache.find(p => p.id === patientId);
+            if (!pat) return;
+            document.getElementById("docTopMobileSearch").value = pat.mobile || "";
+            openExistingPatientPanel(pat);
+        };
+
+        // Doctor: New Patient Direct Save (No Waiting List)
+        document.getElementById("docNewPatientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById("docNewName").value.trim();
+            const mobile = document.getElementById("docNewMobile").value.trim();
+            const visitDate = document.getElementById("docNewVisitDate").value;
+            const treatment = document.getElementById("docNewTreatment").value.trim();
+            const bill = Number(document.getElementById("docNewBill").value || 0);
+            const nextDate = document.getElementById("docNewNextDate").value;
+            const nowISO = new Date().toISOString();
+
+            const patientDocId = "pat_" + Date.now();
+            const patientData = {
+                name,
+                mobile,
+                age: "",
+                gender: "",
+                address: "",
+                problem: treatment,
+                lastVisitDate: visitDate,
+                lastTreatment: treatment,
+                lastBill: bill,
+                nextDate,
+                addedByRole: "doctor",
+                addedByEmail: currentEmail || "",
+                status: "saved_direct",
+                createdAt: nowISO
+            };
+
+            patientsCache.unshift({ id: patientDocId, ...patientData });
+            await upsertDoc("patients", patientDocId, patientData);
+
+            const visitId = "vis_" + Date.now();
+            const visitData = {
+                patientId: patientDocId,
+                visitDate,
+                treatment,
+                bill,
+                nextDate,
+                createdAt: nowISO
+            };
+            visitsCache.unshift({ id: visitId, ...visitData });
+            await upsertDoc("visits", visitId, visitData);
+
+            document.getElementById("docNewPatientForm").reset();
+            document.getElementById("docNewVisitDate").value = todayISO();
+
+            renderAllViews();
+            openExistingPatientPanel({ id: patientDocId, ...patientData });
+            showDocBanner(`Naya patient "${name}" save ho gaya (Waiting list mein nahi bheja gaya). Next Date: ${nextDate}`);
+        });
+
+        // Doctor: Existing Patient History + New Date Update
+        document.getElementById("docUpdateExistingForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const pat = patientsCache.find(p => p.id === activeDoctorPatientId);
+            if (!pat) return;
+
+            const visitDate = document.getElementById("docUpdVisitDate").value;
+            const treatment = document.getElementById("docUpdTreatment").value.trim();
+            const bill = Number(document.getElementById("docUpdBill").value || 0);
+            const nextDate = document.getElementById("docUpdNextDate").value;
+            const nowISO = new Date().toISOString();
+
+            const visitId = "vis_" + Date.now();
+            const visitData = {
+                patientId: pat.id,
+                visitDate,
+                treatment,
+                bill,
+                nextDate,
+                createdAt: nowISO
+            };
+            visitsCache.unshift({ id: visitId, ...visitData });
+            await upsertDoc("visits", visitId, visitData);
+
+            pat.lastVisitDate = visitDate;
+            pat.lastTreatment = treatment;
+            pat.lastBill = bill;
+            pat.nextDate = nextDate;
+            await upsertDoc("patients", pat.id, pat);
+
+            document.getElementById("docUpdateExistingForm").reset();
+            document.getElementById("docUpdVisitDate").value = todayISO();
+
+            renderAllViews();
+            openExistingPatientPanel(pat);
+            showDocBanner(`"${pat.name}" ki history aur Next Date (${nextDate}) update ho gayi.`);
+        });
+
+        // Reception Tab Switch & Add Patient
         window.switchMainTab = function(tab) {
             const addTab = document.getElementById("addTabContent");
             const histTab = document.getElementById("historyTabContent");
@@ -805,8 +1050,6 @@
                 histTab.classList.remove("hidden");
                 btnAdd.classList.remove("active");
                 btnHist.classList.add("active");
-                renderQuickPatientsList();
-                renderPatientHistoryView();
             } else {
                 histTab.classList.add("hidden");
                 addTab.classList.remove("hidden");
@@ -825,40 +1068,33 @@
                 gender: document.getElementById("pGender").value,
                 address: document.getElementById("pAddress").value.trim(),
                 problem: document.getElementById("pProblem").value.trim(),
-                addedByRole: currentRole,
+                addedByRole: "reception",
                 addedByEmail: currentEmail || "",
-                status: currentRole === "doctor" ? "saved_direct" : "waiting",
+                status: "waiting",
                 createdAt: new Date().toISOString()
             };
 
             const patientDocId = "pat_" + Date.now();
-            const savedPatient = { id: patientDocId, ...patientData };
-            patientsCache.unshift(savedPatient);
+            patientsCache.unshift({ id: patientDocId, ...patientData });
             await upsertDoc("patients", patientDocId, patientData);
 
-            const tokenBox = document.getElementById("tokenResultBox");
-            if (currentRole === "doctor") {
-                selectedPatientId = patientDocId;
-                tokenBox.style.display = "block";
-                tokenBox.textContent = `Patient "${patientData.name}" seedha save ho gaya (Waiting list mein nahi bheja gaya).`;
-            } else {
-                const tokenNumber = nextTokenCounter++;
-                const apptId = "appt_" + Date.now();
-                const apptData = {
-                    patientId: patientDocId,
-                    name: patientData.name,
-                    mobile: patientData.mobile,
-                    problem: patientData.problem,
-                    token: tokenNumber,
-                    status: "waiting",
-                    createdAt: new Date().toISOString()
-                };
-                appointmentsCache.push({ id: apptId, ...apptData });
-                await upsertDoc("appointments", apptId, apptData);
+            const tokenNumber = nextTokenCounter++;
+            const apptId = "appt_" + Date.now();
+            const apptData = {
+                patientId: patientDocId,
+                name: patientData.name,
+                mobile: patientData.mobile,
+                problem: patientData.problem,
+                token: tokenNumber,
+                status: "waiting",
+                createdAt: new Date().toISOString()
+            };
+            appointmentsCache.push({ id: apptId, ...apptData });
+            await upsertDoc("appointments", apptId, apptData);
 
-                tokenBox.style.display = "block";
-                tokenBox.textContent = `Patient save hua! Token Number: #${tokenNumber}`;
-            }
+            const tokenBox = document.getElementById("tokenResultBox");
+            tokenBox.style.display = "block";
+            tokenBox.textContent = `Patient save hua! Token Number: #${tokenNumber}`;
 
             document.getElementById("addPatientForm").reset();
             renderAllViews();
@@ -869,28 +1105,81 @@
             if (idx === -1) return;
             appointmentsCache[idx].status = "seen";
             appointmentsCache[idx].seenAt = new Date().toISOString();
-            selectedPatientId = appointmentsCache[idx].patientId || null;
             await upsertDoc("appointments", apptId, appointmentsCache[idx]);
             renderAllViews();
         };
 
+        window.searchPatientByMobile = function() {
+            const q = normalizeMobile(document.getElementById("searchMobileInput").value);
+            const resEl = document.getElementById("receptionHistoryResult");
+            if (!q) {
+                resEl.innerHTML = `<p class="muted">Mobile number daalein.</p>`;
+                return;
+            }
+            const found = patientsCache.find(p => normalizeMobile(p.mobile).includes(q));
+            if (!found) {
+                resEl.innerHTML = `<p class="muted">Is mobile number ke liye koi patient record nahi mila.</p>`;
+                return;
+            }
+            const pVisits = visitsCache.filter(v => v.patientId === found.id);
+            resEl.innerHTML = `
+                <div class="patient-summary">
+                    <div><strong>Naam:</strong> ${found.name} | <strong>Mobile:</strong> ${found.mobile}</div>
+                    <div><strong>Problem:</strong> ${found.problem || "-"} | <strong>Next Date:</strong> ${found.nextDate || "-"}</div>
+                </div>
+                ${pVisits.map(v => `
+                    <div class="visit-card">
+                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0} | Next Date: ${v.nextDate || "-"}</div>
+                        <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
+                    </div>
+                `).join("")}
+            `;
+        };
+
+        function renderLastPatientsBiodata() {
+            const box = document.getElementById("lastPatientsBiodataList");
+            if (!box) return;
+            const recentPatients = patientsCache.slice(0, 10);
+            if (!recentPatients.length) {
+                box.innerHTML = `<p class="muted">Abhi koi patient record nahi hai.</p>`;
+                return;
+            }
+            box.innerHTML = recentPatients.map(p => {
+                const pVisits = visitsCache.filter(v => v.patientId === p.id);
+                const latest = pVisits[0];
+                const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
+                const treatment = latest?.treatment || p.lastTreatment || p.problem || "-";
+                const bill = latest?.bill ?? p.lastBill ?? "-";
+                const nextDate = latest?.nextDate || p.nextDate || "-";
+                return `
+                    <div class="biodata-item">
+                        <div class="biodata-top">
+                            <div><strong>${p.name}</strong> <span class="muted">(${p.mobile || "-"})</span></div>
+                            <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
+                        </div>
+                        <div class="muted">
+                            Visit: <strong>${lastVisit}</strong> | Bill: <strong>₹${bill}</strong> | Next Date: <strong>${nextDate}</strong>
+                        </div>
+                        <div style="font-size:0.86rem; margin-top:3px;"><strong>Treatment:</strong> ${treatment}</div>
+                    </div>
+                `;
+            }).join("");
+        }
+
         function renderAllViews() {
             const waitingItems = appointmentsCache.filter(a => a.status === "waiting");
-            const seenItems = appointmentsCache.filter(a => a.status === "seen").slice(-5).reverse();
-
             document.getElementById("waitingCountDoc").textContent = waitingItems.length;
             document.getElementById("waitingCountRec").textContent = waitingItems.length;
 
             const docWaitEl = document.getElementById("doctorWaitingList");
             const recWaitEl = document.getElementById("receptionWaitingList");
-            const seenEl = document.getElementById("lastSeenList");
 
             if (!waitingItems.length) {
                 docWaitEl.innerHTML = `<p class="muted">Abhi waiting mein koi patient nahi hai.</p>`;
                 recWaitEl.innerHTML = `<p class="muted">Abhi waiting list khaali hai.</p>`;
             } else {
                 docWaitEl.innerHTML = waitingItems.map(item => `
-                    <div class="queue-item">
+                    <div class="queue-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                         <div>
                             <span class="token-pill">#${item.token}</span>
                             <strong>${item.name}</strong> (${item.mobile})<br>
@@ -902,117 +1191,18 @@
 
                 recWaitEl.innerHTML = waitingItems.map(item => `
                     <div class="queue-item">
-                        <div>
-                            <span class="token-pill">#${item.token}</span>
-                            <strong>${item.name}</strong> (${item.mobile})<br>
-                            <span class="muted">${item.problem}</span>
-                        </div>
+                        <span class="token-pill">#${item.token}</span>
+                        <strong>${item.name}</strong> (${item.mobile}) — <span class="muted">${item.problem}</span>
                     </div>
                 `).join("");
             }
 
-            seenEl.innerHTML = seenItems.length
-                ? seenItems.map(item => `
-                    <div class="seen-item">
-                        <div><strong>${item.name}</strong> (${item.mobile})<br><span class="muted">${item.problem}</span></div>
-                        <button class="btn btn-sm btn-blue" onclick="selectPatientForHistory('${item.patientId || ""}')">Open History</button>
-                    </div>
-                `).join("")
-                : `<p class="muted">Abhi kisi patient ka checkup complete nahi hua.</p>`;
-
-            renderQuickPatientsList();
-            renderPatientHistoryView();
+            renderLastPatientsBiodata();
+            if (activeDoctorPatientId) {
+                const activePat = patientsCache.find(p => p.id === activeDoctorPatientId);
+                if (activePat) openExistingPatientPanel(activePat);
+            }
         }
-
-        function renderQuickPatientsList() {
-            const box = document.getElementById("allPatientsQuickList");
-            if (!box) return;
-            const recent = patientsCache.slice(0, 6);
-            if (!recent.length) {
-                box.innerHTML = "";
-                return;
-            }
-            box.innerHTML = `<div class="muted" style="margin-bottom:6px;">Recent Patients:</div>` + recent.map(p => `
-                <button type="button" class="btn btn-sm btn-blue" style="margin:2px;" onclick="selectPatientForHistory('${p.id}')">
-                    ${p.name} (${p.mobile})
-                </button>
-            `).join("");
-        }
-
-        window.selectPatientForHistory = function(patientId) {
-            selectedPatientId = patientId;
-            renderPatientHistoryView();
-        };
-
-        window.searchPatientByMobile = function() {
-            const q = document.getElementById("searchMobileInput").value.trim();
-            if (!q) {
-                renderPatientHistoryView();
-                return;
-            }
-            const found = patientsCache.find(p => String(p.mobile || "").includes(q));
-            selectedPatientId = found ? found.id : null;
-            renderPatientHistoryView(q);
-        };
-
-        function renderPatientHistoryView(searchTerm = "") {
-            const resEl = document.getElementById("patientHistoryResult");
-            const bannerEl = document.getElementById("selectedPatientBanner");
-            const patient = patientsCache.find(p => p.id === selectedPatientId);
-
-            if (!patient) {
-                if (bannerEl) bannerEl.textContent = "Pehle koi patient select karein.";
-                resEl.innerHTML = searchTerm
-                    ? `<p class="muted">"${searchTerm}" ke liye koi patient record nahi mila.</p>`
-                    : `<p class="muted">Kisi patient ka mobile number search karein ya upar list se chunein.</p>`;
-                return;
-            }
-
-            if (bannerEl) {
-                bannerEl.textContent = `Selected Patient: ${patient.name} (${patient.mobile})`;
-            }
-
-            const pVisits = visitsCache.filter(v => v.patientId === patient.id);
-            resEl.innerHTML = `
-                <div class="patient-summary">
-                    <div><strong>Name:</strong> ${patient.name} | <strong>Age/Gender:</strong> ${patient.age} / ${patient.gender || "-"}</div>
-                    <div><strong>Mobile:</strong> ${patient.mobile} | <strong>Address:</strong> ${patient.address || "-"}</div>
-                    <div><strong>Initial Problem:</strong> ${patient.problem}</div>
-                </div>
-                ${pVisits.length ? pVisits.map(v => `
-                    <div class="visit-card">
-                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0}</div>
-                        <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
-                        <div><strong>Medicine/Item:</strong> ${v.items || "-"}</div>
-                        <div class="muted">Next Date: ${v.nextDate || "-"}</div>
-                    </div>
-                `).join("") : `<p class="muted">Is patient ki abhi koi visit entry nahi hai.</p>`}
-            `;
-        }
-
-        document.getElementById("visitUpdateForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            if (!selectedPatientId) {
-                alert("Pehle koi patient select ya search karein.");
-                return;
-            }
-            const visitId = "vis_" + Date.now();
-            const visitObj = {
-                patientId: selectedPatientId,
-                visitDate: document.getElementById("visitDate").value,
-                treatment: document.getElementById("visitTreatment").value.trim(),
-                items: document.getElementById("visitItems").value.trim(),
-                bill: Number(document.getElementById("visitBill").value || 0),
-                lastVisitDate: document.getElementById("lastVisitDateInput").value,
-                nextDate: document.getElementById("nextDateInput").value,
-                createdAt: new Date().toISOString()
-            };
-            visitsCache.unshift({ id: visitId, ...visitObj });
-            await upsertDoc("visits", visitId, visitObj);
-            document.getElementById("visitUpdateForm").reset();
-            document.getElementById("visitDate").value = todayISO();
-            renderPatientHistoryView();
-        });
 
         window.addEventListener("DOMContentLoaded", restoreClinicSession);
     </script>
