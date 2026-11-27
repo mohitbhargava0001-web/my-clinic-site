@@ -374,6 +374,15 @@
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
         }
 
+        .date-visit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
         .date-visit-badge {
             display: inline-block;
             background: #ccfbf1;
@@ -382,7 +391,6 @@
             font-size: 0.86rem;
             padding: 4px 10px;
             border-radius: 8px;
-            margin-bottom: 8px;
         }
 
         .visit-detail-row {
@@ -960,6 +968,20 @@
             }
         }
 
+        async function deleteDoc(collectionName, docId) {
+            if (!authToken || !docId) return;
+            const url = `${FIRESTORE_BASE_URL}/${collectionName}/${docId}`;
+            const res = await fetch(url, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${authToken}`
+                }
+            });
+            if (!res.ok && res.status !== 404) {
+                console.error(`Firestore delete failed for ${collectionName}/${docId}:`, res.status);
+            }
+        }
+
         async function listDocs(collectionName) {
             if (!authToken) return [];
             const url = `${FIRESTORE_BASE_URL}/${collectionName}?pageSize=500`;
@@ -1160,6 +1182,7 @@
                 return [{
                     id: "fallback_" + patient.id,
                     patientId: patient.id,
+                    isFallback: true,
                     visitDate: fallbackDate,
                     treatment: fallbackTreatment,
                     itemsGiven: fallbackGiven,
@@ -1172,6 +1195,86 @@
 
             return [];
         }
+
+        window.deleteVisitEntry = async function(visitId, vDate = "") {
+            if (!visitId) return;
+            const ok = confirm(`Kya aap ${vDate || "is"} visit entry ko delete karna chahte hain?`);
+            if (!ok) return;
+
+            if (!String(visitId).startsWith("fallback_")) {
+                visitsCache = visitsCache.filter(v => v.id !== visitId);
+                await deleteDoc(VISITS_COLLECTION, visitId);
+            }
+
+            if (activeDoctorPatientId) {
+                const pat = patientsCache.find(p => p.id === activeDoctorPatientId);
+                if (pat) {
+                    const remainingVisits = getVisitsForPatient(pat);
+                    const latest = remainingVisits[0];
+                    if (latest) {
+                        pat.lastVisitDate = latest.visitDate || "";
+                        pat.lastTreatment = latest.treatment || "";
+                        pat.itemsGiven = latest.itemsGiven || latest.givenItems || "";
+                        pat.givenItems = pat.itemsGiven;
+                        pat.billAmount = latest.billAmount ?? latest.bill ?? 0;
+                        pat.lastBill = pat.billAmount;
+                        pat.nextDate = latest.nextDate || "";
+                    } else if (String(visitId).startsWith("fallback_")) {
+                        pat.lastVisitDate = "";
+                        pat.lastTreatment = "";
+                        pat.itemsGiven = "";
+                        pat.givenItems = "";
+                        pat.billAmount = 0;
+                        pat.lastBill = 0;
+                        pat.nextDate = "";
+                    }
+                    await upsertDoc("patients", pat.id, pat);
+                }
+            }
+
+            renderAllViews();
+            showDocBannerHtml("Galat visit entry delete ho gayi.");
+        };
+
+        window.deletePatientRecord = async function(patientId, patientName = "") {
+            if (!patientId) return;
+            const ok = confirm(`Kya aap "${patientName || "is patient"}" ka poora record delete karna chahte hain?`);
+            if (!ok) return;
+
+            const pat = patientsCache.find(p => p.id === patientId);
+            const pMob = pat ? normalizeMobile(pat.mobile || pat.phone) : "";
+
+            const relatedVisits = visitsCache.filter(v =>
+                v.patientId === patientId || (pMob && normalizeMobile(v.mobile || v.phone) === pMob)
+            );
+            for (const v of relatedVisits) {
+                if (v.id && !String(v.id).startsWith("fallback_")) {
+                    await deleteDoc(VISITS_COLLECTION, v.id);
+                }
+            }
+            visitsCache = visitsCache.filter(v => !relatedVisits.some(rv => rv.id === v.id));
+
+            const relatedAppts = appointmentsCache.filter(a => a.patientId === patientId);
+            for (const a of relatedAppts) {
+                if (a.id) {
+                    await deleteDoc("appointments", a.id);
+                }
+            }
+            appointmentsCache = appointmentsCache.filter(a => a.patientId !== patientId);
+
+            patientsCache = patientsCache.filter(p => p.id !== patientId);
+            await deleteDoc("patients", patientId);
+
+            if (editingPatientId === patientId) {
+                cancelEditSavedPatient();
+            }
+            if (activeDoctorPatientId === patientId) {
+                clearDoctorMobileLookup();
+            }
+
+            renderAllViews();
+            showDocBannerHtml(`"${patientName || "Patient"}" ka record delete ho gaya.`);
+        };
 
         function renderDateWiseVisitBoxesHtml(patient, pVisits) {
             if (!pVisits.length) {
@@ -1200,7 +1303,10 @@
 
                 return `
                     <div class="date-visit-box">
-                        <div class="date-visit-badge">📅 Visit Date: ${vDate} (Visit #${visitNum})</div>
+                        <div class="date-visit-header">
+                            <span class="date-visit-badge">📅 Visit Date: ${vDate} (Visit #${visitNum})</span>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteVisitEntry('${v.id}', '${vDate}')">Delete Visit</button>
+                        </div>
                         <div class="visit-detail-row"><strong>Kya Ilaaj / Treatment Hua:</strong> ${treatment}</div>
                         <div class="visit-detail-row"><strong>Kya Diya Tha:</strong> ${given}</div>
                         ${fileHtml}
@@ -1305,6 +1411,7 @@
                             <div class="action-btns">
                                 <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Entry / Update</button>
                                 <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${p.id}')">Edit</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="deletePatientRecord('${p.id}', '${displayName.replace(/'/g, "\\'")}')">Delete</button>
                             </div>
                         </div>
                         <div class="muted">
@@ -1398,7 +1505,10 @@
                 <div class="patient-summary">
                     <div class="biodata-top">
                         <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile} | <strong>Age:</strong> ${displayAge}</div>
-                        <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${patient.id}')">Edit Profile</button>
+                        <div class="action-btns">
+                            <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${patient.id}')">Edit Profile</button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deletePatientRecord('${patient.id}', '${displayName.replace(/'/g, "\\'")}')">Delete Patient</button>
+                        </div>
                     </div>
                     <div><strong>Address:</strong> ${displayAddress}</div>
                     <div><strong>Kul Visits:</strong> ${pVisits.length} | <strong>Latest Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
@@ -1755,6 +1865,7 @@
                             <div class="action-btns">
                                 <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
                                 <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${p.id}')">Edit</button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="deletePatientRecord('${p.id}', '${displayName.replace(/'/g, "\\'")}')">Delete</button>
                             </div>
                         </div>
                         <div class="muted">Address: <strong>${displayAddress}</strong></div>
