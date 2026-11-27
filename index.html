@@ -473,7 +473,6 @@
                 <div class="token-banner" id="docActionBanner"></div>
             </div>
 
-            <!-- 1. & 4. DATE BUTTON + DATE PICKER + AUTO-REMOVE UPON ENTRY -->
             <div class="card">
                 <div class="biodata-top" style="margin-bottom:10px;">
                     <h3 id="scheduledPatientsHeading" style="margin-bottom:0;">Aane Wale Patients (Reminder)</h3>
@@ -493,7 +492,6 @@
                 </div>
             </div>
 
-            <!-- 2. SAVED PATIENT ENTRY EDIT PANEL -->
             <div class="edit-box hidden" id="editSavedPatientCard">
                 <h3 style="color:#b45309; margin-bottom:10px;">Saved Patient Entry Edit Karein</h3>
                 <form id="editSavedPatientForm" action="javascript:void(0);">
@@ -516,6 +514,10 @@
                     <div class="form-group">
                         <label>Problem / Treatment</label>
                         <textarea id="editPatProblem" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Bill Kitna Bana Hai (₹)</label>
+                        <input type="number" id="editPatBill" min="0" placeholder="0">
                     </div>
                     <div class="form-group">
                         <label>Next Date</label>
@@ -611,7 +613,6 @@
                 </div>
 
                 <div>
-                    <!-- 3. 15-15 PATIENTS LIST WITH LOAD MORE BUTTON -->
                     <div class="card">
                         <div class="biodata-top">
                             <h3 style="margin-bottom:0;">Patients Biodata List (<span id="shownPatientsCount">0</span> / <span id="totalPatientsCount">0</span>)</h3>
@@ -1032,7 +1033,6 @@
             showLoginView();
         });
 
-        // 1. & 4. Schedule / Reminder Date Controls + Auto-Remove When Entry Done On That Date
         window.toggleScheduleDatePicker = function() {
             const inputEl = document.getElementById("scheduleDateFilter");
             if (!inputEl) return;
@@ -1085,7 +1085,6 @@
                     : `${targetDate} Ko Aane Wale Patients (Reminder)`;
             }
 
-            // Sirf usi date ke patients jinki nextDate === targetDate hai, aur jinki us date par entry abhi nahi hui
             const pendingPatients = patientsCache.filter(
                 p => getLatestNextDateForPatient(p) === targetDate && !hasEntryCompletedOnDate(p, targetDate)
             );
@@ -1126,16 +1125,19 @@
             }).join("");
         }
 
-        // 2. Edit Saved Patient Entry
         window.openEditSavedPatient = function(patientId) {
             const pat = patientsCache.find(p => p.id === patientId);
             if (!pat) return;
             editingPatientId = patientId;
+            const pVisits = visitsCache.filter(v => v.patientId === pat.id);
+            const latest = pVisits[0];
+
             document.getElementById("editPatName").value = pat.name || pat.patientName || pat.fullName || "";
             document.getElementById("editPatMobile").value = pat.mobile || pat.phone || "";
             document.getElementById("editPatAge").value = pat.age || "";
             document.getElementById("editPatAddress").value = pat.address || "";
             document.getElementById("editPatProblem").value = pat.problem || pat.lastTreatment || pat.symptoms || "";
+            document.getElementById("editPatBill").value = latest?.bill ?? pat.lastBill ?? "";
             document.getElementById("editPatNextDate").value = getLatestNextDateForPatient(pat) || "";
             document.getElementById("editSavedPatientCard").classList.remove("hidden");
             document.getElementById("editSavedPatientCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1160,6 +1162,10 @@
             pat.age = ageVal ? Number(ageVal) : "";
             pat.address = document.getElementById("editPatAddress").value.trim();
             pat.problem = document.getElementById("editPatProblem").value.trim();
+            const billVal = document.getElementById("editPatBill").value;
+            if (billVal !== "") {
+                pat.lastBill = Number(billVal);
+            }
             pat.nextDate = document.getElementById("editPatNextDate").value;
 
             await upsertDoc("patients", pat.id, pat);
@@ -1191,6 +1197,7 @@
             const displayAddress = patient.address || "-";
             const pVisits = visitsCache.filter(v => v.patientId === patient.id);
             const latestVisit = pVisits[0];
+            const billDisplay = latestVisit?.bill ?? patient.lastBill ?? 0;
 
             document.getElementById("doctorLookupBody").innerHTML = `
                 <div class="patient-summary">
@@ -1200,14 +1207,14 @@
                     </div>
                     <div><strong>Address:</strong> ${displayAddress}</div>
                     <div><strong>Problem / Treatment:</strong> ${patient.problem || patient.symptoms || latestVisit?.treatment || "-"}</div>
-                    <div><strong>Last Visit:</strong> ${latestVisit?.visitDate || patient.lastVisitDate || "-"} | <strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
+                    <div><strong>Last Visit:</strong> ${latestVisit?.visitDate || patient.lastVisitDate || "-"} | <strong>Bill:</strong> ₹${billDisplay} | <strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
                 </div>
             `;
 
             document.getElementById("docExistingHistoryBox").innerHTML = pVisits.length
                 ? pVisits.map(v => `
                     <div class="visit-card">
-                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0} | Next Date: ${v.nextDate || "-"}</div>
+                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill ?? 0} | Next Date: ${v.nextDate || "-"}</div>
                         <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
                     </div>
                 `).join("")
@@ -1325,7 +1332,7 @@
             renderAllViews();
             openExistingPatientPanel({ id: patientDocId, ...patientData });
             showDocBannerHtml(
-                `Naya patient "${name}" save ho gaya (Waiting list mein nahi bheja gaya). Next Date: ${nextDate}` +
+                `Naya patient "${name}" save ho gaya (Bill: ₹${bill}, Next Date: ${nextDate}).` +
                 renderWhatsAppActionHtml(name, mobile, nextDate)
             );
         });
@@ -1371,12 +1378,11 @@
             const patName = pat.name || pat.patientName || "Patient";
             const patMob = pat.mobile || pat.phone || "";
             showDocBannerHtml(
-                `"${patName}" ki history aur Next Date (${nextDate}) update ho gayi.` +
+                `"${patName}" ki history, Bill (₹${bill}) aur Next Date (${nextDate}) update ho gayi.` +
                 renderWhatsAppActionHtml(patName, patMob, nextDate)
             );
         });
 
-        // Reception Tab Switch & Add Patient
         window.switchMainTab = function(tab) {
             const addTab = document.getElementById("addTabContent");
             const histTab = document.getElementById("historyTabContent");
@@ -1470,14 +1476,13 @@
                 </div>
                 ${pVisits.map(v => `
                     <div class="visit-card">
-                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill || 0} | Next Date: ${v.nextDate || "-"}</div>
+                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill ?? 0} | Next Date: ${v.nextDate || "-"}</div>
                         <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
                     </div>
                 `).join("")}
             `;
         };
 
-        // 3. 15-15 Patients Pagination ("Aur 15 Patients Dekhein")
         window.loadMorePatientsBatch = function() {
             visiblePatientsLimit += PATIENTS_PAGE_SIZE;
             renderLastPatientsBiodata();
