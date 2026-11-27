@@ -364,22 +364,31 @@
             margin-bottom: 14px;
         }
 
-        .visit-card {
+        .date-visit-box {
             background: #ffffff;
-            border-left: 4px solid var(--primary);
-            border-top: 1px solid #e2e8f0;
-            border-right: 1px solid #e2e8f0;
-            border-bottom: 1px solid #e2e8f0;
-            border-radius: 10px;
+            border: 1.5px solid #cbd5e1;
+            border-left: 5px solid var(--primary);
+            border-radius: 12px;
             padding: 12px 14px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
         }
 
-        .visit-header {
-            font-weight: 700;
+        .date-visit-badge {
+            display: inline-block;
+            background: #ccfbf1;
             color: var(--primary-dark);
-            margin-bottom: 6px;
-            font-size: 0.94rem;
+            font-weight: 700;
+            font-size: 0.86rem;
+            padding: 4px 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .visit-detail-row {
+            font-size: 0.88rem;
+            margin-bottom: 5px;
+            line-height: 1.45;
         }
 
         .main-tabs {
@@ -516,6 +525,10 @@
                         <textarea id="editPatProblem" rows="2"></textarea>
                     </div>
                     <div class="form-group">
+                        <label>Kya Diya Tha (Medicine / Kit / Therapy)</label>
+                        <input type="text" id="editPatGiven" placeholder="Jo dawai / cheez di gayi ho">
+                    </div>
+                    <div class="form-group">
                         <label>Bill Kitna Bana Hai (₹)</label>
                         <input type="number" id="editPatBill" min="0" placeholder="0">
                     </div>
@@ -535,7 +548,7 @@
                     <div class="card" id="doctorLookupResultCard">
                         <h3 id="lookupCardTitle">Mobile Search Result</h3>
                         <div id="doctorLookupBody">
-                            <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh history aur update form aayega, naya hoga toh Add Patient form khulega.</p>
+                            <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh har visit ki date-wise detail alag box mein aayegi, naya hoga toh Add Patient form khulega.</p>
                         </div>
                     </div>
 
@@ -563,15 +576,19 @@
                                 <input type="date" id="docNewVisitDate" required>
                             </div>
                             <div class="form-group">
-                                <label>6. Kya Treatment Hua Hai *</label>
-                                <textarea id="docNewTreatment" rows="2" required placeholder="Kiye gaye treatment ki detail"></textarea>
+                                <label>6. Kya Ilaaj / Treatment Hua Hai *</label>
+                                <textarea id="docNewTreatment" rows="2" required placeholder="Kiye gaye ilaaj / treatment ki detail"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>7. Bill Kitna Bana Hai (₹) *</label>
+                                <label>7. Kya Diya Tha (Medicine / Therapy / Item)</label>
+                                <input type="text" id="docNewGiven" placeholder="Dawai, oil, plaster, belt ya jo diya ho">
+                            </div>
+                            <div class="form-group">
+                                <label>8. Bill Kitna Bana Hai (₹) *</label>
                                 <input type="number" id="docNewBill" min="0" required placeholder="0">
                             </div>
                             <div class="form-group">
-                                <label>8. Next Date Kab Ki Hai *</label>
+                                <label>9. Next Date Kab Ki Hai *</label>
                                 <input type="date" id="docNewNextDate" required>
                             </div>
                             <button type="submit" class="btn btn-primary" id="docSaveNewPatientBtn">Save Patient</button>
@@ -579,7 +596,7 @@
                     </div>
 
                     <div class="card hidden" id="doctorExistingUpdateCard">
-                        <h3>Patient History & New Date / Visit Update</h3>
+                        <h3>Date-Wise Visit Boxes & Nayi Visit Entry</h3>
                         <div id="docExistingHistoryBox" style="margin-bottom:14px;"></div>
 
                         <form id="docUpdateExistingForm" action="javascript:void(0);">
@@ -592,15 +609,19 @@
                                 <input type="text" id="docUpdAddress" placeholder="Gaon / Mohalla / Shehar">
                             </div>
                             <div class="form-group">
-                                <label>Visit Date (Aaj / Is Visit Ki Tarikh) *</label>
+                                <label>Visit Date (Kis Tarikh Ki Visit Hai) *</label>
                                 <input type="date" id="docUpdVisitDate" required>
                             </div>
                             <div class="form-group">
-                                <label>Kya Treatment Hua Hai *</label>
-                                <textarea id="docUpdTreatment" rows="2" required placeholder="Naya treatment / update likhein"></textarea>
+                                <label>Kya Ilaaj / Treatment Hua Hai *</label>
+                                <textarea id="docUpdTreatment" rows="2" required placeholder="Is visit mein kya ilaaj / treatment hua"></textarea>
                             </div>
                             <div class="form-group">
-                                <label>Bill Kitna Bana Hai (₹) *</label>
+                                <label>Kya Diya Tha (Medicine / Therapy / Item)</label>
+                                <input type="text" id="docUpdGiven" placeholder="Dawai, oil, plaster, belt ya jo diya ho">
+                            </div>
+                            <div class="form-group">
+                                <label>Bill Kitna Bana Tha (₹) *</label>
                                 <input type="number" id="docUpdBill" min="0" required placeholder="0">
                             </div>
                             <div class="form-group">
@@ -934,7 +955,7 @@
                 .filter(hasValidPatientIdentity)
                 .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
             appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
-            visitsCache = visits.sort((a, b) => (b.createdAt || b.visitDate || "").localeCompare(a.createdAt || a.visitDate || ""));
+            visitsCache = visits.sort((a, b) => (b.visitDate || b.createdAt || "").localeCompare(a.visitDate || a.createdAt || ""));
             const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
             nextTokenCounter = maxToken + 1;
             renderAllViews();
@@ -1033,6 +1054,68 @@
             showLoginView();
         });
 
+        function getVisitsForPatient(patient) {
+            const pMob = normalizeMobile(patient.mobile || patient.phone);
+            const matchedVisits = visitsCache
+                .filter(v => v.patientId === patient.id || (pMob && normalizeMobile(v.mobile || v.phone) === pMob))
+                .sort((a, b) => (b.visitDate || b.createdAt || "").localeCompare(a.visitDate || a.createdAt || ""));
+
+            if (matchedVisits.length > 0) {
+                return matchedVisits;
+            }
+
+            // Agar alag visit doc nahi mila toh patient record se ek visit box bana lein
+            const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
+            const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
+            const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
+            const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
+            const fallbackNext = patient.nextDate || "-";
+
+            if (
+                fallbackTreatment !== "-" ||
+                fallbackGiven !== "-" ||
+                fallbackBill !== "-" ||
+                fallbackNext !== "-" ||
+                fallbackDate !== "-"
+            ) {
+                return [{
+                    id: "fallback_" + patient.id,
+                    patientId: patient.id,
+                    visitDate: fallbackDate,
+                    treatment: fallbackTreatment,
+                    givenItems: fallbackGiven,
+                    bill: fallbackBill,
+                    nextDate: fallbackNext
+                }];
+            }
+
+            return [];
+        }
+
+        function renderDateWiseVisitBoxesHtml(patient, pVisits) {
+            if (!pVisits.length) {
+                return `<p class="muted">Is patient ki koi date-wise visit entry abhi darj nahi hai.</p>`;
+            }
+
+            return pVisits.map((v, idx) => {
+                const vDate = v.visitDate || "-";
+                const treatment = v.treatment || v.problem || patient.lastTreatment || patient.problem || "-";
+                const given = v.givenItems || v.medicineGiven || v.itemsGiven || v.medicines || patient.givenItems || "-";
+                const bill = v.bill ?? patient.lastBill ?? 0;
+                const nextDate = v.nextDate || patient.nextDate || "-";
+
+                return `
+                    <div class="date-visit-box">
+                        <div class="date-visit-badge">📅 Visit Date: ${vDate} (Visit #${pVisits.length - idx})</div>
+                        <div class="visit-detail-row"><strong>Kya Ilaaj / Treatment Hua:</strong> ${treatment}</div>
+                        <div class="visit-detail-row"><strong>Kya Diya Tha:</strong> ${given}</div>
+                        <div class="visit-detail-row"><strong>Bill Kitna Bana Tha:</strong> ₹${bill}</div>
+                        <div class="visit-detail-row" style="margin-bottom:0;"><strong>Next Date:</strong> ${nextDate}</div>
+                    </div>
+                `;
+            }).join("");
+        }
+
         window.toggleScheduleDatePicker = function() {
             const inputEl = document.getElementById("scheduleDateFilter");
             if (!inputEl) return;
@@ -1057,15 +1140,16 @@
         };
 
         function getLatestNextDateForPatient(patient) {
-            const pVisits = visitsCache.filter(v => v.patientId === patient.id);
+            const pVisits = getVisitsForPatient(patient);
             const latestVisit = pVisits[0];
             return String(latestVisit?.nextDate || patient.nextDate || "").trim();
         }
 
         function hasEntryCompletedOnDate(patient, targetDate) {
             if (!targetDate) return false;
-            const hasVisitOnDate = visitsCache.some(
-                v => v.patientId === patient.id && String(v.visitDate || "").trim() === targetDate
+            const pVisits = getVisitsForPatient(patient);
+            const hasVisitOnDate = pVisits.some(
+                v => String(v.visitDate || "").trim() === targetDate
             );
             const hasLastVisitOnDate = String(patient.lastVisitDate || "").trim() === targetDate;
             return hasVisitOnDate || hasLastVisitOnDate;
@@ -1099,7 +1183,7 @@
                 const displayMobile = p.mobile || p.phone || "-";
                 const displayAge = p.age ? `${p.age} Saal` : "-";
                 const displayAddress = p.address || "-";
-                const pVisits = visitsCache.filter(v => v.patientId === p.id);
+                const pVisits = getVisitsForPatient(p);
                 const latest = pVisits[0];
                 const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
                 const nextDate = getLatestNextDateForPatient(p) || "-";
@@ -1129,7 +1213,7 @@
             const pat = patientsCache.find(p => p.id === patientId);
             if (!pat) return;
             editingPatientId = patientId;
-            const pVisits = visitsCache.filter(v => v.patientId === pat.id);
+            const pVisits = getVisitsForPatient(pat);
             const latest = pVisits[0];
 
             document.getElementById("editPatName").value = pat.name || pat.patientName || pat.fullName || "";
@@ -1137,6 +1221,7 @@
             document.getElementById("editPatAge").value = pat.age || "";
             document.getElementById("editPatAddress").value = pat.address || "";
             document.getElementById("editPatProblem").value = pat.problem || pat.lastTreatment || pat.symptoms || "";
+            document.getElementById("editPatGiven").value = latest?.givenItems || pat.givenItems || "";
             document.getElementById("editPatBill").value = latest?.bill ?? pat.lastBill ?? "";
             document.getElementById("editPatNextDate").value = getLatestNextDateForPatient(pat) || "";
             document.getElementById("editSavedPatientCard").classList.remove("hidden");
@@ -1162,6 +1247,7 @@
             pat.age = ageVal ? Number(ageVal) : "";
             pat.address = document.getElementById("editPatAddress").value.trim();
             pat.problem = document.getElementById("editPatProblem").value.trim();
+            pat.givenItems = document.getElementById("editPatGiven").value.trim();
             const billVal = document.getElementById("editPatBill").value;
             if (billVal !== "") {
                 pat.lastBill = Number(billVal);
@@ -1189,40 +1275,34 @@
             activeDoctorPatientId = patient.id;
             document.getElementById("doctorNewPatientCard").classList.add("hidden");
             document.getElementById("doctorExistingUpdateCard").classList.remove("hidden");
-            document.getElementById("lookupCardTitle").textContent = "Purana Patient Mila — History & Next Date Update";
+            document.getElementById("lookupCardTitle").textContent = "Purana Patient Mila — Date-Wise Har Visit Detail";
 
             const displayName = patient.name || patient.patientName || patient.fullName || "Patient";
             const displayMobile = patient.mobile || patient.phone || "-";
             const displayAge = patient.age ? `${patient.age} Saal` : "-";
             const displayAddress = patient.address || "-";
-            const pVisits = visitsCache.filter(v => v.patientId === patient.id);
+            const pVisits = getVisitsForPatient(patient);
             const latestVisit = pVisits[0];
-            const billDisplay = latestVisit?.bill ?? patient.lastBill ?? 0;
 
             document.getElementById("doctorLookupBody").innerHTML = `
                 <div class="patient-summary">
                     <div class="biodata-top">
                         <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile} | <strong>Age:</strong> ${displayAge}</div>
-                        <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${patient.id}')">Edit Entry</button>
+                        <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${patient.id}')">Edit Profile</button>
                     </div>
                     <div><strong>Address:</strong> ${displayAddress}</div>
-                    <div><strong>Problem / Treatment:</strong> ${patient.problem || patient.symptoms || latestVisit?.treatment || "-"}</div>
-                    <div><strong>Last Visit:</strong> ${latestVisit?.visitDate || patient.lastVisitDate || "-"} | <strong>Bill:</strong> ₹${billDisplay} | <strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
+                    <div><strong>Kul Visits:</strong> ${pVisits.length} | <strong>Latest Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
                 </div>
+                <div style="margin-bottom:8px; font-weight:700; color:#0f766e;">Har Visit Ki Date-Wise Detail:</div>
+                ${renderDateWiseVisitBoxesHtml(patient, pVisits)}
             `;
 
-            document.getElementById("docExistingHistoryBox").innerHTML = pVisits.length
-                ? pVisits.map(v => `
-                    <div class="visit-card">
-                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill ?? 0} | Next Date: ${v.nextDate || "-"}</div>
-                        <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
-                    </div>
-                `).join("")
-                : `<p class="muted">Pichhli visit entries yahan dikhengi. Neeche se naya visit / next date update karein.</p>`;
+            document.getElementById("docExistingHistoryBox").innerHTML = renderDateWiseVisitBoxesHtml(patient, pVisits);
 
             document.getElementById("docUpdAge").value = patient.age || "";
             document.getElementById("docUpdAddress").value = patient.address || "";
             document.getElementById("docUpdVisitDate").value = todayISO();
+            document.getElementById("docUpdGiven").value = "";
             if (latestVisit?.nextDate) {
                 document.getElementById("docUpdNextDate").value = latestVisit.nextDate;
             }
@@ -1252,7 +1332,7 @@
                 document.getElementById("doctorExistingUpdateCard").classList.add("hidden");
                 document.getElementById("lookupCardTitle").textContent = "Mobile Search Result";
                 document.getElementById("doctorLookupBody").innerHTML = `
-                    <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh history aur update form aayega, naya hoga toh Add Patient form khulega.</p>
+                    <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh har visit ki date-wise detail alag box mein aayegi, naya hoga toh Add Patient form khulega.</p>
                 `;
                 return;
             }
@@ -1289,6 +1369,7 @@
             const address = document.getElementById("docNewAddress").value.trim();
             const visitDate = document.getElementById("docNewVisitDate").value;
             const treatment = document.getElementById("docNewTreatment").value.trim();
+            const givenItems = document.getElementById("docNewGiven").value.trim();
             const bill = Number(document.getElementById("docNewBill").value || 0);
             const nextDate = document.getElementById("docNewNextDate").value;
             const nowISO = new Date().toISOString();
@@ -1301,6 +1382,7 @@
                 gender: "",
                 address,
                 problem: treatment,
+                givenItems,
                 lastVisitDate: visitDate,
                 lastTreatment: treatment,
                 lastBill: bill,
@@ -1317,8 +1399,10 @@
             const visitId = "vis_" + Date.now();
             const visitData = {
                 patientId: patientDocId,
+                mobile,
                 visitDate,
                 treatment,
+                givenItems,
                 bill,
                 nextDate,
                 createdAt: nowISO
@@ -1346,6 +1430,7 @@
             const updatedAddress = document.getElementById("docUpdAddress").value.trim();
             const visitDate = document.getElementById("docUpdVisitDate").value;
             const treatment = document.getElementById("docUpdTreatment").value.trim();
+            const givenItems = document.getElementById("docUpdGiven").value.trim();
             const bill = Number(document.getElementById("docUpdBill").value || 0);
             const nextDate = document.getElementById("docUpdNextDate").value;
             const nowISO = new Date().toISOString();
@@ -1353,8 +1438,10 @@
             const visitId = "vis_" + Date.now();
             const visitData = {
                 patientId: pat.id,
+                mobile: pat.mobile || pat.phone || "",
                 visitDate,
                 treatment,
+                givenItems,
                 bill,
                 nextDate,
                 createdAt: nowISO
@@ -1364,6 +1451,7 @@
 
             if (updatedAge) pat.age = Number(updatedAge);
             if (updatedAddress) pat.address = updatedAddress;
+            if (givenItems) pat.givenItems = givenItems;
             pat.lastVisitDate = visitDate;
             pat.lastTreatment = treatment;
             pat.lastBill = bill;
@@ -1378,7 +1466,7 @@
             const patName = pat.name || pat.patientName || "Patient";
             const patMob = pat.mobile || pat.phone || "";
             showDocBannerHtml(
-                `"${patName}" ki history, Bill (₹${bill}) aur Next Date (${nextDate}) update ho gayi.` +
+                `"${patName}" ki nayi visit (${visitDate}) alag box mein save ho gayi.` +
                 renderWhatsAppActionHtml(patName, patMob, nextDate)
             );
         });
@@ -1467,19 +1555,14 @@
                 resEl.innerHTML = `<p class="muted">Is mobile number ke liye koi patient record nahi mila.</p>`;
                 return;
             }
-            const pVisits = visitsCache.filter(v => v.patientId === found.id);
+            const pVisits = getVisitsForPatient(found);
             resEl.innerHTML = `
                 <div class="patient-summary">
                     <div><strong>Naam:</strong> ${found.name || found.patientName || "Patient"} | <strong>Mobile:</strong> ${found.mobile || found.phone || "-"} | <strong>Age:</strong> ${found.age ? found.age + " Saal" : "-"}</div>
                     <div><strong>Address:</strong> ${found.address || "-"}</div>
-                    <div><strong>Problem:</strong> ${found.problem || found.symptoms || "-"} | <strong>Next Date:</strong> ${found.nextDate || "-"}</div>
+                    <div><strong>Next Date:</strong> ${found.nextDate || "-"}</div>
                 </div>
-                ${pVisits.map(v => `
-                    <div class="visit-card">
-                        <div class="visit-header">Visit Date: ${v.visitDate || "-"} | Bill: ₹${v.bill ?? 0} | Next Date: ${v.nextDate || "-"}</div>
-                        <div><strong>Treatment:</strong> ${v.treatment || "-"}</div>
-                    </div>
-                `).join("")}
+                ${renderDateWiseVisitBoxesHtml(found, pVisits)}
             `;
         };
 
@@ -1514,10 +1597,11 @@
                 const displayMobile = p.mobile || p.phone || "-";
                 const displayAge = p.age ? `${p.age} Saal` : "-";
                 const displayAddress = p.address || "-";
-                const pVisits = visitsCache.filter(v => v.patientId === p.id);
+                const pVisits = getVisitsForPatient(p);
                 const latest = pVisits[0];
                 const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
                 const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
+                const given = latest?.givenItems || p.givenItems || "-";
                 const bill = latest?.bill ?? p.lastBill ?? "-";
                 const nextDate = getLatestNextDateForPatient(p) || "-";
 
@@ -1535,6 +1619,7 @@
                             Visit: <strong>${lastVisit}</strong> | Bill: <strong>₹${bill}</strong> | Next Date: <strong>${nextDate}</strong>
                         </div>
                         <div style="font-size:0.86rem; margin-top:3px;"><strong>Treatment:</strong> ${treatment}</div>
+                        <div style="font-size:0.86rem; margin-top:2px;"><strong>Diya Tha:</strong> ${given}</div>
                     </div>
                 `;
             }).join("");
