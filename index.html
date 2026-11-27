@@ -596,9 +596,15 @@
                     </div>
 
                     <div class="card hidden" id="doctorExistingUpdateCard">
-                        <h3>Date-Wise Visit Boxes & Nayi Visit Entry</h3>
-                        <div id="docExistingHistoryBox" style="margin-bottom:14px;"></div>
+                        <div class="biodata-top">
+                            <h3 style="margin-bottom:0;">Date-Wise Visit Boxes</h3>
+                            <button type="button" class="btn btn-sm btn-blue" onclick="focusNewVisitForm()">
+                                ➕ Ek Aur Visit Box Jorein
+                            </button>
+                        </div>
+                        <div id="docExistingHistoryBox" style="margin-top:10px; margin-bottom:14px;"></div>
 
+                        <h3 id="addVisitBoxTitle">Nayi Visit Entry Jorein (Alag Box Banega)</h3>
                         <form id="docUpdateExistingForm" action="javascript:void(0);">
                             <div class="form-group">
                                 <label>Age (Umra)</label>
@@ -628,7 +634,7 @@
                                 <label>Next Date Kab Ki Hai (New Appointment Date) *</label>
                                 <input type="date" id="docUpdNextDate" required>
                             </div>
-                            <button type="submit" class="btn btn-success" style="width:100%; padding:11px;">Update History & Next Date</button>
+                            <button type="submit" class="btn btn-success" style="width:100%; padding:11px;">Save Nayi Visit (Alag Box Mein)</button>
                         </form>
                     </div>
                 </div>
@@ -1057,20 +1063,30 @@
             showLoginView();
         });
 
-        function splitPipeSegmentsIfPresent(visitObj) {
+        function splitMultiEntrySegments(visitObj) {
             const rawTreat = String(visitObj.treatment || "");
             const rawGiven = String(visitObj.givenItems || "");
-            const hasPipe = rawTreat.includes(" | ") || rawGiven.includes(" | ");
-            if (!hasPipe) return [visitObj];
 
-            const treatParts = rawTreat.split(" | ").map(s => s.trim()).filter(Boolean);
-            const givenParts = rawGiven.split(" | ").map(s => s.trim()).filter(Boolean);
+            let treatParts = [];
+            if (rawTreat.includes(" | ")) {
+                treatParts = rawTreat.split(" | ").map(s => s.trim()).filter(Boolean);
+            } else if (rawTreat.includes("\n")) {
+                treatParts = rawTreat.split("\n").map(s => s.trim()).filter(Boolean);
+            }
+
+            let givenParts = [];
+            if (rawGiven.includes(" | ")) {
+                givenParts = rawGiven.split(" | ").map(s => s.trim()).filter(Boolean);
+            } else if (rawGiven.includes("\n")) {
+                givenParts = rawGiven.split("\n").map(s => s.trim()).filter(Boolean);
+            }
+
             const count = Math.max(treatParts.length, givenParts.length);
             if (count <= 1) return [visitObj];
 
             return Array.from({ length: count }, (_, idx) => ({
                 ...visitObj,
-                id: `${visitObj.id}_part_${idx}`,
+                id: `${visitObj.id}_seg_${idx}`,
                 treatment: treatParts[idx] || treatParts[0] || visitObj.treatment,
                 givenItems: givenParts[idx] || (idx === 0 ? (givenParts[0] || "-") : "-")
             }));
@@ -1131,7 +1147,7 @@
 
             const expanded = [];
             baseList.forEach(item => {
-                splitPipeSegmentsIfPresent(item).forEach(part => expanded.push(part));
+                splitMultiEntrySegments(item).forEach(part => expanded.push(part));
             });
 
             return expanded.sort((a, b) => {
@@ -1164,6 +1180,17 @@
                 `;
             }).join("");
         }
+
+        window.focusNewVisitForm = function() {
+            const formEl = document.getElementById("docUpdateExistingForm");
+            if (!formEl) return;
+            document.getElementById("docUpdTreatment").value = "";
+            document.getElementById("docUpdGiven").value = "";
+            document.getElementById("docUpdBill").value = "";
+            document.getElementById("docUpdVisitDate").value = todayISO();
+            formEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            document.getElementById("docUpdTreatment").focus();
+        };
 
         window.toggleScheduleDatePicker = function() {
             const inputEl = document.getElementById("scheduleDateFilter");
