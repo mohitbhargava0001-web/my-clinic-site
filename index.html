@@ -1056,15 +1056,41 @@
 
         function getVisitsForPatient(patient) {
             const pMob = normalizeMobile(patient.mobile || patient.phone);
-            const matchedVisits = visitsCache
-                .filter(v => v.patientId === patient.id || (pMob && normalizeMobile(v.mobile || v.phone) === pMob))
-                .sort((a, b) => (b.visitDate || b.createdAt || "").localeCompare(a.visitDate || a.createdAt || ""));
+            const pName = String(patient.name || patient.patientName || patient.fullName || "").trim().toLowerCase();
 
-            if (matchedVisits.length > 0) {
-                return matchedVisits;
+            // Is mobile number wale sabhi patient records ke IDs bhi nikaalein (agar duplicate patient doc ho)
+            const matchingPatientIds = new Set(
+                patientsCache
+                    .filter(p => p.id === patient.id || (pMob && normalizeMobile(p.mobile || p.phone) === pMob))
+                    .map(p => p.id)
+            );
+
+            const rawMatched = visitsCache.filter(v => {
+                if (matchingPatientIds.has(v.patientId)) return true;
+                const vMob = normalizeMobile(v.mobile || v.phone);
+                if (pMob && vMob && vMob === pMob) return true;
+                const vName = String(v.name || v.patientName || "").trim().toLowerCase();
+                if (pName && vName && vName === pName && !vMob) return true;
+                return false;
+            });
+
+            // Duplicate visit IDs hatayein
+            const uniqueVisitsMap = new Map();
+            rawMatched.forEach((v, i) => {
+                const key = v.id || `${v.visitDate || ""}_${v.treatment || ""}_${v.bill || ""}_${i}`;
+                uniqueVisitsMap.set(key, v);
+            });
+
+            const sortedVisits = Array.from(uniqueVisitsMap.values()).sort((a, b) => {
+                const dA = String(a.visitDate || a.createdAt || "");
+                const dB = String(b.visitDate || b.createdAt || "");
+                return dB.localeCompare(dA);
+            });
+
+            if (sortedVisits.length > 0) {
+                return sortedVisits;
             }
 
-            // Agar alag visit doc nahi mila toh patient record se ek visit box bana lein
             const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
             const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
             const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
@@ -1374,7 +1400,7 @@
             const nextDate = document.getElementById("docNewNextDate").value;
             const nowISO = new Date().toISOString();
 
-            const patientDocId = "pat_" + Date.now();
+            const patientDocId = "pat_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
             const patientData = {
                 name,
                 mobile,
@@ -1396,7 +1422,7 @@
             patientsCache.unshift({ id: patientDocId, ...patientData });
             await upsertDoc("patients", patientDocId, patientData);
 
-            const visitId = "vis_" + Date.now();
+            const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
             const visitData = {
                 patientId: patientDocId,
                 mobile,
@@ -1435,7 +1461,7 @@
             const nextDate = document.getElementById("docUpdNextDate").value;
             const nowISO = new Date().toISOString();
 
-            const visitId = "vis_" + Date.now();
+            const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
             const visitData = {
                 patientId: pat.id,
                 mobile: pat.mobile || pat.phone || "",
@@ -1506,12 +1532,12 @@
                 createdAt: new Date().toISOString()
             };
 
-            const patientDocId = "pat_" + Date.now();
+            const patientDocId = "pat_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
             patientsCache.unshift({ id: patientDocId, ...patientData });
             await upsertDoc("patients", patientDocId, patientData);
 
             const tokenNumber = nextTokenCounter++;
-            const apptId = "appt_" + Date.now();
+            const apptId = "appt_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
             const apptData = {
                 patientId: patientDocId,
                 name: patientData.name,
