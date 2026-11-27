@@ -391,6 +391,15 @@
             line-height: 1.45;
         }
 
+        .visit-file-preview {
+            margin-top: 8px;
+            max-width: 100%;
+            max-height: 220px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            display: block;
+        }
+
         .main-tabs {
             display: flex;
             gap: 10px;
@@ -584,11 +593,15 @@
                                 <input type="text" id="docNewGiven" placeholder="Dawai, oil, plaster, belt ya jo diya ho">
                             </div>
                             <div class="form-group">
-                                <label>8. Bill Kitna Bana Hai (₹) *</label>
+                                <label>8. Treatment File / Report / Photo Upload (Optional)</label>
+                                <input type="file" id="docNewFile" accept="image/*,.pdf,.doc,.docx">
+                            </div>
+                            <div class="form-group">
+                                <label>9. Bill Kitna Bana Hai (₹) *</label>
                                 <input type="number" id="docNewBill" min="0" required placeholder="0">
                             </div>
                             <div class="form-group">
-                                <label>9. Next Date Kab Ki Hai *</label>
+                                <label>10. Next Date Kab Ki Hai *</label>
                                 <input type="date" id="docNewNextDate" required>
                             </div>
                             <button type="submit" class="btn btn-primary" id="docSaveNewPatientBtn">Save Patient</button>
@@ -604,7 +617,7 @@
                         </div>
                         <div id="docExistingHistoryBox" style="margin-top:10px; margin-bottom:14px;"></div>
 
-                        <h3 id="addVisitBoxTitle">Nayi Visit Entry Jorein (Naya Alag Box Banega)</h3>
+                        <h3 id="addVisitBoxTitle">Nayi Visit Entry & File Upload (Naya Alag Box Banega)</h3>
                         <form id="docUpdateExistingForm" action="javascript:void(0);">
                             <div class="form-group">
                                 <label>Age (Umra)</label>
@@ -625,6 +638,10 @@
                             <div class="form-group">
                                 <label>Kya Diya Tha (Medicine / Therapy / Item)</label>
                                 <input type="text" id="docUpdGiven" placeholder="Dawai, oil, plaster, belt ya jo diya ho">
+                            </div>
+                            <div class="form-group">
+                                <label>Treatment File / Report / Photo Upload (Optional)</label>
+                                <input type="file" id="docUpdFile" accept="image/*,.pdf,.doc,.docx">
                             </div>
                             <div class="form-group">
                                 <label>Bill Kitna Bana Tha (₹) *</label>
@@ -964,7 +981,7 @@
                 .filter(hasValidPatientIdentity)
                 .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
             appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
-            visitsCache = visits.sort((a, b) => (b.visitDate || b.createdAt || "").localeCompare(a.visitDate || a.createdAt || ""));
+            visitsCache = visits.sort((a, b) => (b.createdAt || b.visitDate || "").localeCompare(a.createdAt || a.visitDate || ""));
             const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
             nextTokenCounter = maxToken + 1;
             renderAllViews();
@@ -1063,6 +1080,31 @@
             showLoginView();
         });
 
+        function readSelectedFileData(fileInputEl) {
+            return new Promise((resolve) => {
+                const file = fileInputEl?.files?.[0];
+                if (!file) {
+                    resolve({ fileName: "", fileDataUrl: "", isImage: false });
+                    return;
+                }
+                const isImage = String(file.type || "").startsWith("image/");
+                if (isImage && file.size <= 500 * 1024) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        resolve({
+                            fileName: file.name,
+                            fileDataUrl: typeof reader.result === "string" ? reader.result : "",
+                            isImage: true
+                        });
+                    };
+                    reader.onerror = () => resolve({ fileName: file.name, fileDataUrl: "", isImage: false });
+                    reader.readAsDataURL(file);
+                } else {
+                    resolve({ fileName: file.name, fileDataUrl: "", isImage: false });
+                }
+            });
+        }
+
         function getVisitsForPatient(patient) {
             const pMob = normalizeMobile(patient.mobile || patient.phone);
             const pName = String(patient.name || patient.patientName || patient.fullName || "").trim().toLowerCase();
@@ -1100,12 +1142,15 @@
             const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
             const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
             const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
+            const fallbackFileName = patient.fileName || "";
+            const fallbackFileDataUrl = patient.fileDataUrl || "";
             const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
             const fallbackNext = patient.nextDate || "-";
 
             if (
                 fallbackTreatment !== "-" ||
                 fallbackGiven !== "-" ||
+                fallbackFileName ||
                 fallbackBill !== "-" ||
                 fallbackNext !== "-" ||
                 fallbackDate !== "-"
@@ -1116,6 +1161,8 @@
                     visitDate: fallbackDate,
                     treatment: fallbackTreatment,
                     givenItems: fallbackGiven,
+                    fileName: fallbackFileName,
+                    fileDataUrl: fallbackFileDataUrl,
                     bill: fallbackBill,
                     nextDate: fallbackNext
                 }];
@@ -1133,14 +1180,27 @@
                 const vDate = v.visitDate || "-";
                 const treatment = v.treatment || v.problem || patient.lastTreatment || patient.problem || "-";
                 const given = v.givenItems || v.medicineGiven || v.itemsGiven || v.medicines || patient.givenItems || "-";
+                const fileName = v.fileName || "";
+                const fileDataUrl = v.fileDataUrl || "";
                 const bill = v.bill ?? patient.lastBill ?? 0;
                 const nextDate = v.nextDate || patient.nextDate || "-";
+
+                let fileHtml = `<div class="visit-detail-row"><strong>Treatment File:</strong> -</div>`;
+                if (fileDataUrl && fileDataUrl.startsWith("data:image/")) {
+                    fileHtml = `
+                        <div class="visit-detail-row"><strong>Treatment File:</strong> ${fileName || "Uploaded Photo"}</div>
+                        <img src="${fileDataUrl}" alt="${fileName || "Treatment File"}" class="visit-file-preview">
+                    `;
+                } else if (fileName) {
+                    fileHtml = `<div class="visit-detail-row"><strong>Treatment File:</strong> 📎 ${fileName}</div>`;
+                }
 
                 return `
                     <div class="date-visit-box">
                         <div class="date-visit-badge">📅 Visit Date: ${vDate} (Visit #${pVisits.length - idx})</div>
                         <div class="visit-detail-row"><strong>Kya Ilaaj / Treatment Hua:</strong> ${treatment}</div>
                         <div class="visit-detail-row"><strong>Kya Diya Tha:</strong> ${given}</div>
+                        ${fileHtml}
                         <div class="visit-detail-row"><strong>Bill Kitna Bana Tha:</strong> ₹${bill}</div>
                         <div class="visit-detail-row" style="margin-bottom:0;"><strong>Next Date:</strong> ${nextDate}</div>
                     </div>
@@ -1153,6 +1213,7 @@
             if (!formEl) return;
             document.getElementById("docUpdTreatment").value = "";
             document.getElementById("docUpdGiven").value = "";
+            document.getElementById("docUpdFile").value = "";
             document.getElementById("docUpdBill").value = "";
             document.getElementById("docUpdVisitDate").value = todayISO();
             formEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1346,6 +1407,7 @@
             document.getElementById("docUpdAddress").value = patient.address || "";
             document.getElementById("docUpdVisitDate").value = todayISO();
             document.getElementById("docUpdGiven").value = "";
+            document.getElementById("docUpdFile").value = "";
             if (latestVisit?.nextDate) {
                 document.getElementById("docUpdNextDate").value = latestVisit.nextDate;
             }
@@ -1413,6 +1475,7 @@
             const visitDate = document.getElementById("docNewVisitDate").value;
             const treatment = document.getElementById("docNewTreatment").value.trim();
             const givenItems = document.getElementById("docNewGiven").value.trim();
+            const fileMeta = await readSelectedFileData(document.getElementById("docNewFile"));
             const bill = Number(document.getElementById("docNewBill").value || 0);
             const nextDate = document.getElementById("docNewNextDate").value;
             const nowISO = new Date().toISOString();
@@ -1426,6 +1489,8 @@
                 address,
                 problem: treatment,
                 givenItems,
+                fileName: fileMeta.fileName,
+                fileDataUrl: fileMeta.fileDataUrl,
                 lastVisitDate: visitDate,
                 lastTreatment: treatment,
                 lastBill: bill,
@@ -1446,6 +1511,8 @@
                 visitDate,
                 treatment,
                 givenItems,
+                fileName: fileMeta.fileName,
+                fileDataUrl: fileMeta.fileDataUrl,
                 bill,
                 nextDate,
                 createdAt: nowISO
@@ -1474,11 +1541,11 @@
             const visitDate = document.getElementById("docUpdVisitDate").value;
             const treatment = document.getElementById("docUpdTreatment").value.trim();
             const givenItems = document.getElementById("docUpdGiven").value.trim();
+            const fileMeta = await readSelectedFileData(document.getElementById("docUpdFile"));
             const bill = Number(document.getElementById("docUpdBill").value || 0);
             const nextDate = document.getElementById("docUpdNextDate").value;
             const nowISO = new Date().toISOString();
 
-            // Pehle se maujood visits mein se koi nahi chhedega; hamesha naya alag visit doc banayega
             const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
             const visitData = {
                 patientId: pat.id,
@@ -1486,6 +1553,8 @@
                 visitDate,
                 treatment,
                 givenItems,
+                fileName: fileMeta.fileName,
+                fileDataUrl: fileMeta.fileDataUrl,
                 bill,
                 nextDate,
                 createdAt: nowISO
@@ -1493,12 +1562,13 @@
             visitsCache.unshift({ id: visitId, ...visitData });
             await upsertDoc("visits", visitId, visitData);
 
-            // Patient summary fields update karein (purani visit boxes safe rahengi)
             if (updatedAge) pat.age = Number(updatedAge);
             if (updatedAddress) pat.address = updatedAddress;
             pat.lastVisitDate = visitDate;
             pat.lastTreatment = treatment;
             if (givenItems) pat.givenItems = givenItems;
+            if (fileMeta.fileName) pat.fileName = fileMeta.fileName;
+            if (fileMeta.fileDataUrl) pat.fileDataUrl = fileMeta.fileDataUrl;
             pat.lastBill = bill;
             pat.nextDate = nextDate;
             await upsertDoc("patients", pat.id, pat);
@@ -1511,7 +1581,7 @@
             const patName = pat.name || pat.patientName || "Patient";
             const patMob = pat.mobile || pat.phone || "";
             showDocBannerHtml(
-                `"${patName}" ki nayi visit (${visitDate}) naye alag box mein save ho gayi.` +
+                `"${patName}" ki nayi visit (${visitDate}) alag box mein save ho gayi.` +
                 renderWhatsAppActionHtml(patName, patMob, nextDate)
             );
         });
@@ -1647,6 +1717,7 @@
                 const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
                 const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
                 const given = latest?.givenItems || p.givenItems || "-";
+                const fileName = latest?.fileName || p.fileName || "-";
                 const bill = latest?.bill ?? p.lastBill ?? "-";
                 const nextDate = getLatestNextDateForPatient(p) || "-";
 
@@ -1665,6 +1736,7 @@
                         </div>
                         <div style="font-size:0.86rem; margin-top:3px;"><strong>Treatment:</strong> ${treatment}</div>
                         <div style="font-size:0.86rem; margin-top:2px;"><strong>Diya Tha:</strong> ${given}</div>
+                        <div style="font-size:0.86rem; margin-top:2px;"><strong>File:</strong> ${fileName}</div>
                     </div>
                 `;
             }).join("");
