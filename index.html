@@ -604,7 +604,7 @@
                         </div>
                         <div id="docExistingHistoryBox" style="margin-top:10px; margin-bottom:14px;"></div>
 
-                        <h3 id="addVisitBoxTitle">Nayi Visit Entry Jorein (Alag Box Banega)</h3>
+                        <h3 id="addVisitBoxTitle">Nayi Visit Entry Jorein (Naya Alag Box Banega)</h3>
                         <form id="docUpdateExistingForm" action="javascript:void(0);">
                             <div class="form-group">
                                 <label>Age (Umra)</label>
@@ -1063,35 +1063,6 @@
             showLoginView();
         });
 
-        function splitMultiEntrySegments(visitObj) {
-            const rawTreat = String(visitObj.treatment || "");
-            const rawGiven = String(visitObj.givenItems || "");
-
-            let treatParts = [];
-            if (rawTreat.includes(" | ")) {
-                treatParts = rawTreat.split(" | ").map(s => s.trim()).filter(Boolean);
-            } else if (rawTreat.includes("\n")) {
-                treatParts = rawTreat.split("\n").map(s => s.trim()).filter(Boolean);
-            }
-
-            let givenParts = [];
-            if (rawGiven.includes(" | ")) {
-                givenParts = rawGiven.split(" | ").map(s => s.trim()).filter(Boolean);
-            } else if (rawGiven.includes("\n")) {
-                givenParts = rawGiven.split("\n").map(s => s.trim()).filter(Boolean);
-            }
-
-            const count = Math.max(treatParts.length, givenParts.length);
-            if (count <= 1) return [visitObj];
-
-            return Array.from({ length: count }, (_, idx) => ({
-                ...visitObj,
-                id: `${visitObj.id}_seg_${idx}`,
-                treatment: treatParts[idx] || treatParts[0] || visitObj.treatment,
-                givenItems: givenParts[idx] || (idx === 0 ? (givenParts[0] || "-") : "-")
-            }));
-        }
-
         function getVisitsForPatient(patient) {
             const pMob = normalizeMobile(patient.mobile || patient.phone);
             const pName = String(patient.name || patient.patientName || patient.fullName || "").trim().toLowerCase();
@@ -1117,44 +1088,40 @@
                 uniqueVisitsMap.set(key, v);
             });
 
-            let baseList = Array.from(uniqueVisitsMap.values());
-
-            if (!baseList.length) {
-                const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
-                const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
-                const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
-                const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
-                const fallbackNext = patient.nextDate || "-";
-
-                if (
-                    fallbackTreatment !== "-" ||
-                    fallbackGiven !== "-" ||
-                    fallbackBill !== "-" ||
-                    fallbackNext !== "-" ||
-                    fallbackDate !== "-"
-                ) {
-                    baseList = [{
-                        id: "fallback_" + patient.id,
-                        patientId: patient.id,
-                        visitDate: fallbackDate,
-                        treatment: fallbackTreatment,
-                        givenItems: fallbackGiven,
-                        bill: fallbackBill,
-                        nextDate: fallbackNext
-                    }];
-                }
+            const list = Array.from(uniqueVisitsMap.values());
+            if (list.length > 0) {
+                return list.sort((a, b) => {
+                    const dA = String(a.createdAt || a.visitDate || "");
+                    const dB = String(b.createdAt || b.visitDate || "");
+                    return dB.localeCompare(dA);
+                });
             }
 
-            const expanded = [];
-            baseList.forEach(item => {
-                splitMultiEntrySegments(item).forEach(part => expanded.push(part));
-            });
+            const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
+            const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
+            const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
+            const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
+            const fallbackNext = patient.nextDate || "-";
 
-            return expanded.sort((a, b) => {
-                const dA = String(a.visitDate || a.createdAt || "");
-                const dB = String(b.visitDate || b.createdAt || "");
-                return dB.localeCompare(dA);
-            });
+            if (
+                fallbackTreatment !== "-" ||
+                fallbackGiven !== "-" ||
+                fallbackBill !== "-" ||
+                fallbackNext !== "-" ||
+                fallbackDate !== "-"
+            ) {
+                return [{
+                    id: "fallback_" + patient.id,
+                    patientId: patient.id,
+                    visitDate: fallbackDate,
+                    treatment: fallbackTreatment,
+                    givenItems: fallbackGiven,
+                    bill: fallbackBill,
+                    nextDate: fallbackNext
+                }];
+            }
+
+            return [];
         }
 
         function renderDateWiseVisitBoxesHtml(patient, pVisits) {
@@ -1511,7 +1478,8 @@
             const nextDate = document.getElementById("docUpdNextDate").value;
             const nowISO = new Date().toISOString();
 
-            const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+            // Pehle se maujood visits mein se koi nahi chhedega; hamesha naya alag visit doc banayega
+            const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
             const visitData = {
                 patientId: pat.id,
                 mobile: pat.mobile || pat.phone || "",
@@ -1525,11 +1493,12 @@
             visitsCache.unshift({ id: visitId, ...visitData });
             await upsertDoc("visits", visitId, visitData);
 
+            // Patient summary fields update karein (purani visit boxes safe rahengi)
             if (updatedAge) pat.age = Number(updatedAge);
             if (updatedAddress) pat.address = updatedAddress;
-            if (givenItems) pat.givenItems = givenItems;
             pat.lastVisitDate = visitDate;
             pat.lastTreatment = treatment;
+            if (givenItems) pat.givenItems = givenItems;
             pat.lastBill = bill;
             pat.nextDate = nextDate;
             await upsertDoc("patients", pat.id, pat);
@@ -1542,7 +1511,7 @@
             const patName = pat.name || pat.patientName || "Patient";
             const patMob = pat.mobile || pat.phone || "";
             showDocBannerHtml(
-                `"${patName}" ki nayi visit (${visitDate}) alag box mein save ho gayi.` +
+                `"${patName}" ki nayi visit (${visitDate}) naye alag box mein save ho gayi.` +
                 renderWhatsAppActionHtml(patName, patMob, nextDate)
             );
         });
