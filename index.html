@@ -511,7 +511,7 @@
             </div>
 
             <div class="edit-box hidden" id="editSavedPatientCard">
-                <h3 style="color:#b45309; margin-bottom:10px;">Saved Patient Entry Edit Karein</h3>
+                <h3 style="color:#b45309; margin-bottom:10px;">Saved Patient Profile Edit Karein</h3>
                 <form id="editSavedPatientForm" action="javascript:void(0);">
                     <div class="form-group">
                         <label>Patient ka Naam *</label>
@@ -617,7 +617,7 @@
                         </div>
                         <div id="docExistingHistoryBox" style="margin-top:10px; margin-bottom:14px;"></div>
 
-                        <h3 id="addVisitBoxTitle">Nayi Visit Entry & File Upload (Naya Alag Box Banega)</h3>
+                        <h3 id="addVisitBoxTitle">Nayi Visit Entry & File Upload (Alag Naya Box Banega)</h3>
                         <form id="docUpdateExistingForm" action="javascript:void(0);">
                             <div class="form-group">
                                 <label>Age (Umra)</label>
@@ -763,6 +763,7 @@
 
         const WHATSAPP_GROUP_INVITE_LINK = "";
         const PATIENTS_PAGE_SIZE = 15;
+        const VISITS_COLLECTION = "Visits";
 
         const SESSION_STORAGE_KEY = "fhcc_clinic_session_v1";
         const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
@@ -972,16 +973,20 @@
 
         async function loadAllClinicData() {
             if (!authToken) return;
-            const [pats, appts, visits] = await Promise.all([
+            const [pats, appts, visitsDocs] = await Promise.all([
                 listDocs("patients"),
                 listDocs("appointments"),
-                listDocs("visits")
+                listDocs(VISITS_COLLECTION)
             ]);
             patientsCache = pats
                 .filter(hasValidPatientIdentity)
                 .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
             appointmentsCache = appts.sort((a, b) => (a.token || 0) - (b.token || 0));
-            visitsCache = visits.sort((a, b) => (b.createdAt || b.visitDate || "").localeCompare(a.createdAt || a.visitDate || ""));
+            visitsCache = visitsDocs.sort((a, b) => {
+                const idxDiff = (Number(b.visitIndex) || 0) - (Number(a.visitIndex) || 0);
+                if (idxDiff !== 0) return idxDiff;
+                return String(b.visitDate || b.createdAt || "").localeCompare(String(a.visitDate || a.createdAt || ""));
+            });
             const maxToken = appointmentsCache.reduce((m, item) => Math.max(m, Number(item.token) || 0), 0);
             nextTokenCounter = maxToken + 1;
             renderAllViews();
@@ -1107,8 +1112,6 @@
 
         function getVisitsForPatient(patient) {
             const pMob = normalizeMobile(patient.mobile || patient.phone);
-            const pName = String(patient.name || patient.patientName || patient.fullName || "").trim().toLowerCase();
-
             const matchingPatientIds = new Set(
                 patientsCache
                     .filter(p => p.id === patient.id || (pMob && normalizeMobile(p.mobile || p.phone) === pMob))
@@ -1118,33 +1121,32 @@
             const rawMatched = visitsCache.filter(v => {
                 if (matchingPatientIds.has(v.patientId)) return true;
                 const vMob = normalizeMobile(v.mobile || v.phone);
-                if (pMob && vMob && vMob === pMob) return true;
-                const vName = String(v.name || v.patientName || "").trim().toLowerCase();
-                if (pName && vName && vName === pName && !vMob) return true;
-                return false;
+                return Boolean(pMob && vMob && vMob === pMob);
             });
 
             const uniqueVisitsMap = new Map();
             rawMatched.forEach((v, i) => {
-                const key = v.id || `${v.visitDate || ""}_${v.treatment || ""}_${v.bill || ""}_${i}`;
+                const key = v.id || `${v.visitDate || ""}_${v.treatment || ""}_${v.billAmount ?? v.bill ?? ""}_${i}`;
                 uniqueVisitsMap.set(key, v);
             });
 
             const list = Array.from(uniqueVisitsMap.values());
             if (list.length > 0) {
                 return list.sort((a, b) => {
-                    const dA = String(a.createdAt || a.visitDate || "");
-                    const dB = String(b.createdAt || b.visitDate || "");
+                    const idxDiff = (Number(b.visitIndex) || 0) - (Number(a.visitIndex) || 0);
+                    if (idxDiff !== 0) return idxDiff;
+                    const dA = String(a.visitDate || a.createdAt || "");
+                    const dB = String(b.visitDate || b.createdAt || "");
                     return dB.localeCompare(dA);
                 });
             }
 
             const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
             const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
-            const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
+            const fallbackGiven = patient.itemsGiven || patient.givenItems || patient.medicineGiven || "-";
             const fallbackFileName = patient.fileName || "";
             const fallbackFileDataUrl = patient.fileDataUrl || "";
-            const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
+            const fallbackBill = patient.billAmount ?? patient.lastBill ?? patient.bill ?? "-";
             const fallbackNext = patient.nextDate || "-";
 
             if (
@@ -1160,10 +1162,10 @@
                     patientId: patient.id,
                     visitDate: fallbackDate,
                     treatment: fallbackTreatment,
-                    givenItems: fallbackGiven,
+                    itemsGiven: fallbackGiven,
                     fileName: fallbackFileName,
                     fileDataUrl: fallbackFileDataUrl,
-                    bill: fallbackBill,
+                    billAmount: fallbackBill,
                     nextDate: fallbackNext
                 }];
             }
@@ -1179,11 +1181,12 @@
             return pVisits.map((v, idx) => {
                 const vDate = v.visitDate || "-";
                 const treatment = v.treatment || v.problem || patient.lastTreatment || patient.problem || "-";
-                const given = v.givenItems || v.medicineGiven || v.itemsGiven || v.medicines || patient.givenItems || "-";
+                const given = v.itemsGiven || v.givenItems || v.medicineGiven || v.itemsGiven || patient.itemsGiven || patient.givenItems || "-";
                 const fileName = v.fileName || "";
                 const fileDataUrl = v.fileDataUrl || "";
-                const bill = v.bill ?? patient.lastBill ?? 0;
+                const bill = v.billAmount ?? v.bill ?? patient.billAmount ?? patient.lastBill ?? 0;
                 const nextDate = v.nextDate || patient.nextDate || "-";
+                const visitNum = Number(v.visitIndex) || (pVisits.length - idx);
 
                 let fileHtml = `<div class="visit-detail-row"><strong>Treatment File:</strong> -</div>`;
                 if (fileDataUrl && fileDataUrl.startsWith("data:image/")) {
@@ -1197,7 +1200,7 @@
 
                 return `
                     <div class="date-visit-box">
-                        <div class="date-visit-badge">📅 Visit Date: ${vDate} (Visit #${pVisits.length - idx})</div>
+                        <div class="date-visit-badge">📅 Visit Date: ${vDate} (Visit #${visitNum})</div>
                         <div class="visit-detail-row"><strong>Kya Ilaaj / Treatment Hua:</strong> ${treatment}</div>
                         <div class="visit-detail-row"><strong>Kya Diya Tha:</strong> ${given}</div>
                         ${fileHtml}
@@ -1325,8 +1328,8 @@
             document.getElementById("editPatAge").value = pat.age || "";
             document.getElementById("editPatAddress").value = pat.address || "";
             document.getElementById("editPatProblem").value = pat.problem || pat.lastTreatment || pat.symptoms || "";
-            document.getElementById("editPatGiven").value = latest?.givenItems || pat.givenItems || "";
-            document.getElementById("editPatBill").value = latest?.bill ?? pat.lastBill ?? "";
+            document.getElementById("editPatGiven").value = latest?.itemsGiven || latest?.givenItems || pat.itemsGiven || pat.givenItems || "";
+            document.getElementById("editPatBill").value = latest?.billAmount ?? latest?.bill ?? pat.billAmount ?? pat.lastBill ?? "";
             document.getElementById("editPatNextDate").value = getLatestNextDateForPatient(pat) || "";
             document.getElementById("editSavedPatientCard").classList.remove("hidden");
             document.getElementById("editSavedPatientCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1351,9 +1354,12 @@
             pat.age = ageVal ? Number(ageVal) : "";
             pat.address = document.getElementById("editPatAddress").value.trim();
             pat.problem = document.getElementById("editPatProblem").value.trim();
-            pat.givenItems = document.getElementById("editPatGiven").value.trim();
+            const givenVal = document.getElementById("editPatGiven").value.trim();
+            pat.itemsGiven = givenVal;
+            pat.givenItems = givenVal;
             const billVal = document.getElementById("editPatBill").value;
             if (billVal !== "") {
+                pat.billAmount = Number(billVal);
                 pat.lastBill = Number(billVal);
             }
             pat.nextDate = document.getElementById("editPatNextDate").value;
@@ -1365,7 +1371,7 @@
             if (activeDoctorPatientId === pat.id) {
                 openExistingPatientPanel(pat);
             }
-            showDocBannerHtml(`"${updatedName}" ki saved entry update ho gayi.`);
+            showDocBannerHtml(`"${updatedName}" ki saved profile update ho gayi.`);
         });
 
         function showDocBannerHtml(html) {
@@ -1480,7 +1486,7 @@
             const nextDate = document.getElementById("docNewNextDate").value;
             const nowISO = new Date().toISOString();
 
-            const patientDocId = "pat_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+            const patientDocId = "pat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
             const patientData = {
                 name,
                 mobile,
@@ -1488,11 +1494,13 @@
                 gender: "",
                 address,
                 problem: treatment,
+                itemsGiven: givenItems,
                 givenItems,
                 fileName: fileMeta.fileName,
                 fileDataUrl: fileMeta.fileDataUrl,
                 lastVisitDate: visitDate,
                 lastTreatment: treatment,
+                billAmount: bill,
                 lastBill: bill,
                 nextDate,
                 addedByRole: "doctor",
@@ -1504,21 +1512,25 @@
             patientsCache.unshift({ id: patientDocId, ...patientData });
             await upsertDoc("patients", patientDocId, patientData);
 
-            const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+            const visitId = "vis_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
             const visitData = {
                 patientId: patientDocId,
                 mobile,
                 visitDate,
+                lastVisitDate: visitDate,
+                visitIndex: 1,
                 treatment,
+                itemsGiven: givenItems,
                 givenItems,
                 fileName: fileMeta.fileName,
                 fileDataUrl: fileMeta.fileDataUrl,
+                billAmount: bill,
                 bill,
                 nextDate,
                 createdAt: nowISO
             };
             visitsCache.unshift({ id: visitId, ...visitData });
-            await upsertDoc("visits", visitId, visitData);
+            await upsertDoc(VISITS_COLLECTION, visitId, visitData);
 
             document.getElementById("docNewPatientForm").reset();
             document.getElementById("docNewVisitDate").value = todayISO();
@@ -1536,6 +1548,13 @@
             const pat = patientsCache.find(p => p.id === activeDoctorPatientId);
             if (!pat) return;
 
+            const existingVisits = getVisitsForPatient(pat);
+            const maxVisitIndex = existingVisits.reduce(
+                (m, item) => Math.max(m, Number(item.visitIndex) || 0),
+                existingVisits.length
+            );
+            const nextVisitIndex = maxVisitIndex + 1;
+
             const updatedAge = document.getElementById("docUpdAge").value;
             const updatedAddress = document.getElementById("docUpdAddress").value.trim();
             const visitDate = document.getElementById("docUpdVisitDate").value;
@@ -1546,29 +1565,37 @@
             const nextDate = document.getElementById("docUpdNextDate").value;
             const nowISO = new Date().toISOString();
 
-            const visitId = "vis_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+            const visitId = "vis_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
             const visitData = {
                 patientId: pat.id,
                 mobile: pat.mobile || pat.phone || "",
                 visitDate,
+                lastVisitDate: visitDate,
+                visitIndex: nextVisitIndex,
                 treatment,
+                itemsGiven: givenItems,
                 givenItems,
                 fileName: fileMeta.fileName,
                 fileDataUrl: fileMeta.fileDataUrl,
+                billAmount: bill,
                 bill,
                 nextDate,
                 createdAt: nowISO
             };
             visitsCache.unshift({ id: visitId, ...visitData });
-            await upsertDoc("visits", visitId, visitData);
+            await upsertDoc(VISITS_COLLECTION, visitId, visitData);
 
             if (updatedAge) pat.age = Number(updatedAge);
             if (updatedAddress) pat.address = updatedAddress;
             pat.lastVisitDate = visitDate;
             pat.lastTreatment = treatment;
-            if (givenItems) pat.givenItems = givenItems;
+            if (givenItems) {
+                pat.itemsGiven = givenItems;
+                pat.givenItems = givenItems;
+            }
             if (fileMeta.fileName) pat.fileName = fileMeta.fileName;
             if (fileMeta.fileDataUrl) pat.fileDataUrl = fileMeta.fileDataUrl;
+            pat.billAmount = bill;
             pat.lastBill = bill;
             pat.nextDate = nextDate;
             await upsertDoc("patients", pat.id, pat);
@@ -1581,7 +1608,7 @@
             const patName = pat.name || pat.patientName || "Patient";
             const patMob = pat.mobile || pat.phone || "";
             showDocBannerHtml(
-                `"${patName}" ki nayi visit (${visitDate}) alag box mein save ho gayi.` +
+                `"${patName}" ki Visit #${nextVisitIndex} (${visitDate}) alag box mein save ho gayi.` +
                 renderWhatsAppActionHtml(patName, patMob, nextDate)
             );
         });
@@ -1621,12 +1648,12 @@
                 createdAt: new Date().toISOString()
             };
 
-            const patientDocId = "pat_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+            const patientDocId = "pat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
             patientsCache.unshift({ id: patientDocId, ...patientData });
             await upsertDoc("patients", patientDocId, patientData);
 
             const tokenNumber = nextTokenCounter++;
-            const apptId = "appt_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+            const apptId = "appt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
             const apptData = {
                 patientId: patientDocId,
                 name: patientData.name,
@@ -1716,9 +1743,9 @@
                 const latest = pVisits[0];
                 const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
                 const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
-                const given = latest?.givenItems || p.givenItems || "-";
+                const given = latest?.itemsGiven || latest?.givenItems || p.itemsGiven || p.givenItems || "-";
                 const fileName = latest?.fileName || p.fileName || "-";
-                const bill = latest?.bill ?? p.lastBill ?? "-";
+                const bill = latest?.billAmount ?? latest?.bill ?? p.billAmount ?? p.lastBill ?? "-";
                 const nextDate = getLatestNextDateForPatient(p) || "-";
 
                 return `
