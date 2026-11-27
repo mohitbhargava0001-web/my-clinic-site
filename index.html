@@ -923,7 +923,7 @@
         async function upsertDoc(collectionName, docId, dataObj) {
             if (!authToken) return;
             const url = `${FIRESTORE_BASE_URL}/${collectionName}/${docId}`;
-            await fetch(url, {
+            const res = await fetch(url, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -931,6 +931,9 @@
                 },
                 body: JSON.stringify({ fields: toFirestoreFields(dataObj) })
             });
+            if (!res.ok) {
+                console.error(`Firestore write failed for ${collectionName}/${docId}:`, res.status);
+            }
         }
 
         async function listDocs(collectionName) {
@@ -1054,11 +1057,29 @@
             showLoginView();
         });
 
+        function splitPipeSegmentsIfPresent(visitObj) {
+            const rawTreat = String(visitObj.treatment || "");
+            const rawGiven = String(visitObj.givenItems || "");
+            const hasPipe = rawTreat.includes(" | ") || rawGiven.includes(" | ");
+            if (!hasPipe) return [visitObj];
+
+            const treatParts = rawTreat.split(" | ").map(s => s.trim()).filter(Boolean);
+            const givenParts = rawGiven.split(" | ").map(s => s.trim()).filter(Boolean);
+            const count = Math.max(treatParts.length, givenParts.length);
+            if (count <= 1) return [visitObj];
+
+            return Array.from({ length: count }, (_, idx) => ({
+                ...visitObj,
+                id: `${visitObj.id}_part_${idx}`,
+                treatment: treatParts[idx] || treatParts[0] || visitObj.treatment,
+                givenItems: givenParts[idx] || (idx === 0 ? (givenParts[0] || "-") : "-")
+            }));
+        }
+
         function getVisitsForPatient(patient) {
             const pMob = normalizeMobile(patient.mobile || patient.phone);
             const pName = String(patient.name || patient.patientName || patient.fullName || "").trim().toLowerCase();
 
-            // Is mobile number wale sabhi patient records ke IDs bhi nikaalein (agar duplicate patient doc ho)
             const matchingPatientIds = new Set(
                 patientsCache
                     .filter(p => p.id === patient.id || (pMob && normalizeMobile(p.mobile || p.phone) === pMob))
@@ -1074,48 +1095,50 @@
                 return false;
             });
 
-            // Duplicate visit IDs hatayein
             const uniqueVisitsMap = new Map();
             rawMatched.forEach((v, i) => {
                 const key = v.id || `${v.visitDate || ""}_${v.treatment || ""}_${v.bill || ""}_${i}`;
                 uniqueVisitsMap.set(key, v);
             });
 
-            const sortedVisits = Array.from(uniqueVisitsMap.values()).sort((a, b) => {
+            let baseList = Array.from(uniqueVisitsMap.values());
+
+            if (!baseList.length) {
+                const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
+                const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
+                const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
+                const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
+                const fallbackNext = patient.nextDate || "-";
+
+                if (
+                    fallbackTreatment !== "-" ||
+                    fallbackGiven !== "-" ||
+                    fallbackBill !== "-" ||
+                    fallbackNext !== "-" ||
+                    fallbackDate !== "-"
+                ) {
+                    baseList = [{
+                        id: "fallback_" + patient.id,
+                        patientId: patient.id,
+                        visitDate: fallbackDate,
+                        treatment: fallbackTreatment,
+                        givenItems: fallbackGiven,
+                        bill: fallbackBill,
+                        nextDate: fallbackNext
+                    }];
+                }
+            }
+
+            const expanded = [];
+            baseList.forEach(item => {
+                splitPipeSegmentsIfPresent(item).forEach(part => expanded.push(part));
+            });
+
+            return expanded.sort((a, b) => {
                 const dA = String(a.visitDate || a.createdAt || "");
                 const dB = String(b.visitDate || b.createdAt || "");
                 return dB.localeCompare(dA);
             });
-
-            if (sortedVisits.length > 0) {
-                return sortedVisits;
-            }
-
-            const fallbackDate = patient.lastVisitDate || (patient.createdAt ? String(patient.createdAt).split("T")[0] : "-");
-            const fallbackTreatment = patient.lastTreatment || patient.problem || patient.symptoms || "-";
-            const fallbackGiven = patient.givenItems || patient.medicineGiven || patient.itemsGiven || "-";
-            const fallbackBill = patient.lastBill ?? patient.bill ?? "-";
-            const fallbackNext = patient.nextDate || "-";
-
-            if (
-                fallbackTreatment !== "-" ||
-                fallbackGiven !== "-" ||
-                fallbackBill !== "-" ||
-                fallbackNext !== "-" ||
-                fallbackDate !== "-"
-            ) {
-                return [{
-                    id: "fallback_" + patient.id,
-                    patientId: patient.id,
-                    visitDate: fallbackDate,
-                    treatment: fallbackTreatment,
-                    givenItems: fallbackGiven,
-                    bill: fallbackBill,
-                    nextDate: fallbackNext
-                }];
-            }
-
-            return [];
         }
 
         function renderDateWiseVisitBoxesHtml(patient, pVisits) {
