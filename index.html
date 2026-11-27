@@ -19,6 +19,8 @@
             --danger: #dc2626;
             --success: #15803d;
             --whatsapp: #16a34a;
+            --warning-bg: #fffbeb;
+            --warning-border: #f59e0b;
         }
 
         * {
@@ -167,6 +169,11 @@
             margin-top: 8px;
         }
 
+        .btn-gray {
+            background: #64748b;
+            color: #fff;
+        }
+
         .error-text {
             color: var(--danger);
             font-size: 0.84rem;
@@ -276,6 +283,14 @@
             margin-bottom: 10px;
         }
 
+        .edit-box {
+            background: var(--warning-bg);
+            border: 1.5px solid var(--warning-border);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
         .grid-2 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -324,6 +339,12 @@
             gap: 8px;
             flex-wrap: wrap;
             margin-bottom: 4px;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         .token-pill {
@@ -447,22 +468,64 @@
                     <span class="search-icon" aria-hidden="true">🔍</span>
                     <input type="tel" id="docTopMobileSearch" placeholder="Patient ka mobile number daalein..." oninput="handleDoctorMobileLookup()">
                     <button type="button" class="btn btn-sm btn-blue" onclick="handleDoctorMobileLookup()">Search</button>
-                    <button type="button" class="btn btn-sm" style="background:#64748b;" onclick="clearDoctorMobileLookup()">Clear</button>
+                    <button type="button" class="btn btn-sm btn-gray" onclick="clearDoctorMobileLookup()">Clear</button>
                 </div>
                 <div class="token-banner" id="docActionBanner"></div>
             </div>
 
-            <!-- DATE WISE AANE WALE PATIENTS (AAJ YA KISI BHI DATE KE LIYE) -->
+            <!-- 1. & 4. DATE BUTTON + DATE PICKER + AUTO-REMOVE UPON ENTRY -->
             <div class="card">
-                <h3 id="scheduledPatientsHeading">Aaj Aane Wale Patients (Schedule / Next Date)</h3>
-                <div class="upcoming-bar">
-                    <label for="scheduleDateFilter" style="font-size:0.86rem; font-weight:600; color:#334155;">Date Chunein:</label>
+                <div class="biodata-top" style="margin-bottom:10px;">
+                    <h3 id="scheduledPatientsHeading" style="margin-bottom:0;">Aane Wale Patients (Reminder)</h3>
+                    <button type="button" class="btn btn-sm btn-blue" onclick="toggleScheduleDatePicker()">
+                        📅 Date Chunein / Reminder
+                    </button>
+                </div>
+
+                <div id="schedulePickerRow" class="upcoming-bar">
+                    <label for="scheduleDateFilter" style="font-size:0.86rem; font-weight:600; color:#334155;">Date:</label>
                     <input type="date" id="scheduleDateFilter" onchange="renderScheduledPatientsByDate()">
-                    <button type="button" class="btn btn-sm btn-blue" onclick="setScheduleDateToToday()">Aaj Ki Date</button>
+                    <button type="button" class="btn btn-sm" onclick="setScheduleDateToToday()">Aaj Ki Date</button>
                 </div>
+
                 <div id="scheduledPatientsList">
-                    <p class="muted">Is date ke liye koi patient schedule nahi hai.</p>
+                    <p class="muted">Is date ke liye koi pending patient nahi hai.</p>
                 </div>
+            </div>
+
+            <!-- 2. SAVED PATIENT ENTRY EDIT PANEL -->
+            <div class="edit-box hidden" id="editSavedPatientCard">
+                <h3 style="color:#b45309; margin-bottom:10px;">Saved Patient Entry Edit Karein</h3>
+                <form id="editSavedPatientForm" action="javascript:void(0);">
+                    <div class="form-group">
+                        <label>Patient ka Naam *</label>
+                        <input type="text" id="editPatName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mobile Number *</label>
+                        <input type="tel" id="editPatMobile" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Age (Umra)</label>
+                        <input type="number" id="editPatAge" min="1" max="120">
+                    </div>
+                    <div class="form-group">
+                        <label>Address (Pata)</label>
+                        <input type="text" id="editPatAddress">
+                    </div>
+                    <div class="form-group">
+                        <label>Problem / Treatment</label>
+                        <textarea id="editPatProblem" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Next Date</label>
+                        <input type="date" id="editPatNextDate">
+                    </div>
+                    <div class="action-btns">
+                        <button type="submit" class="btn btn-sm btn-success">Save Changes</button>
+                        <button type="button" class="btn btn-sm btn-gray" onclick="cancelEditSavedPatient()">Cancel</button>
+                    </div>
+                </form>
             </div>
 
             <div class="grid-2">
@@ -548,10 +611,18 @@
                 </div>
 
                 <div>
+                    <!-- 3. 15-15 PATIENTS LIST WITH LOAD MORE BUTTON -->
                     <div class="card">
-                        <h3>Last Patients Biodata (Haal Ke Mareez)</h3>
-                        <div id="lastPatientsBiodataList">
+                        <div class="biodata-top">
+                            <h3 style="margin-bottom:0;">Patients Biodata List (<span id="shownPatientsCount">0</span> / <span id="totalPatientsCount">0</span>)</h3>
+                        </div>
+                        <div id="lastPatientsBiodataList" style="margin-top:10px;">
                             <p class="muted">Abhi koi patient record nahi hai.</p>
+                        </div>
+                        <div id="loadMorePatientsWrap" class="hidden" style="margin-top:10px; text-align:center;">
+                            <button type="button" class="btn btn-sm btn-blue" id="loadMorePatientsBtn" onclick="loadMorePatientsBatch()">
+                                Aur 15 Patients Dekhein
+                            </button>
                         </div>
                     </div>
 
@@ -646,6 +717,7 @@
         ];
 
         const WHATSAPP_GROUP_INVITE_LINK = "";
+        const PATIENTS_PAGE_SIZE = 15;
 
         const SESSION_STORAGE_KEY = "fhcc_clinic_session_v1";
         const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
@@ -664,6 +736,8 @@
         let appointmentsCache = [];
         let visitsCache = [];
         let activeDoctorPatientId = null;
+        let editingPatientId = null;
+        let visiblePatientsLimit = PATIENTS_PAGE_SIZE;
         let nextTokenCounter = 1;
 
         function getLocalTodayISO() {
@@ -839,7 +913,7 @@
 
         async function listDocs(collectionName) {
             if (!authToken) return [];
-            const url = `${FIRESTORE_BASE_URL}/${collectionName}?pageSize=200`;
+            const url = `${FIRESTORE_BASE_URL}/${collectionName}?pageSize=500`;
             const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
@@ -958,16 +1032,44 @@
             showLoginView();
         });
 
+        // 1. & 4. Schedule / Reminder Date Controls + Auto-Remove When Entry Done On That Date
+        window.toggleScheduleDatePicker = function() {
+            const inputEl = document.getElementById("scheduleDateFilter");
+            if (!inputEl) return;
+            if (!inputEl.value) {
+                inputEl.value = todayISO();
+            }
+            if (typeof inputEl.showPicker === "function") {
+                try {
+                    inputEl.showPicker();
+                } catch (_) {
+                    inputEl.focus();
+                }
+            } else {
+                inputEl.focus();
+            }
+            renderScheduledPatientsByDate();
+        };
+
+        window.setScheduleDateToToday = function() {
+            document.getElementById("scheduleDateFilter").value = todayISO();
+            renderScheduledPatientsByDate();
+        };
+
         function getLatestNextDateForPatient(patient) {
             const pVisits = visitsCache.filter(v => v.patientId === patient.id);
             const latestVisit = pVisits[0];
             return String(latestVisit?.nextDate || patient.nextDate || "").trim();
         }
 
-        window.setScheduleDateToToday = function() {
-            document.getElementById("scheduleDateFilter").value = todayISO();
-            renderScheduledPatientsByDate();
-        };
+        function hasEntryCompletedOnDate(patient, targetDate) {
+            if (!targetDate) return false;
+            const hasVisitOnDate = visitsCache.some(
+                v => v.patientId === patient.id && String(v.visitDate || "").trim() === targetDate
+            );
+            const hasLastVisitOnDate = String(patient.lastVisitDate || "").trim() === targetDate;
+            return hasVisitOnDate || hasLastVisitOnDate;
+        }
 
         function renderScheduledPatientsByDate() {
             const listEl = document.getElementById("scheduledPatientsList");
@@ -979,27 +1081,28 @@
             const isToday = targetDate === todayISO();
             if (headingEl) {
                 headingEl.textContent = isToday
-                    ? `Aaj (${targetDate}) Aane Wale Patients`
-                    : `${targetDate} Ko Aane Wale Patients`;
+                    ? `Aaj (${targetDate}) Aane Wale Patients (Reminder)`
+                    : `${targetDate} Ko Aane Wale Patients (Reminder)`;
             }
 
-            const duePatients = patientsCache.filter(p => getLatestNextDateForPatient(p) === targetDate);
+            // Sirf usi date ke patients jinki nextDate === targetDate hai, aur jinki us date par entry abhi nahi hui
+            const pendingPatients = patientsCache.filter(
+                p => getLatestNextDateForPatient(p) === targetDate && !hasEntryCompletedOnDate(p, targetDate)
+            );
 
-            if (!duePatients.length) {
-                listEl.innerHTML = `<p class="muted">${isToday ? "Aaj" : targetDate + " ko"} kisi patient ki next date nahi hai.</p>`;
+            if (!pendingPatients.length) {
+                listEl.innerHTML = `<p class="muted">${isToday ? "Aaj" : targetDate + " ko"} koi pending patient bacha nahi hai.</p>`;
                 return;
             }
 
-            listEl.innerHTML = duePatients.map(p => {
+            listEl.innerHTML = pendingPatients.map(p => {
                 const displayName = p.name || p.patientName || p.fullName || "Patient";
                 const displayMobile = p.mobile || p.phone || "-";
                 const displayAge = p.age ? `${p.age} Saal` : "-";
                 const displayAddress = p.address || "-";
                 const pVisits = visitsCache.filter(v => v.patientId === p.id);
                 const latest = pVisits[0];
-                const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
                 const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
-                const bill = latest?.bill ?? p.lastBill ?? "-";
                 const nextDate = getLatestNextDateForPatient(p) || "-";
 
                 return `
@@ -1009,19 +1112,65 @@
                                 <strong>${displayName}</strong> <span class="muted">(${displayMobile})</span>
                                 | <strong>Age:</strong> ${displayAge}
                             </div>
-                            <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
+                            <div class="action-btns">
+                                <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Entry / Update</button>
+                                <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${p.id}')">Edit</button>
+                            </div>
                         </div>
                         <div class="muted">
                             <strong>Address:</strong> ${displayAddress} | <strong>Next Date:</strong> ${nextDate}
                         </div>
-                        <div class="muted">
-                            <strong>Last Visit:</strong> ${lastVisit} | <strong>Last Bill:</strong> ₹${bill}
-                        </div>
-                        <div style="font-size:0.86rem; margin-top:3px;"><strong>Last Treatment:</strong> ${treatment}</div>
+                        <div style="font-size:0.86rem; margin-top:3px;"><strong>Treatment:</strong> ${treatment}</div>
                     </div>
                 `;
             }).join("");
         }
+
+        // 2. Edit Saved Patient Entry
+        window.openEditSavedPatient = function(patientId) {
+            const pat = patientsCache.find(p => p.id === patientId);
+            if (!pat) return;
+            editingPatientId = patientId;
+            document.getElementById("editPatName").value = pat.name || pat.patientName || pat.fullName || "";
+            document.getElementById("editPatMobile").value = pat.mobile || pat.phone || "";
+            document.getElementById("editPatAge").value = pat.age || "";
+            document.getElementById("editPatAddress").value = pat.address || "";
+            document.getElementById("editPatProblem").value = pat.problem || pat.lastTreatment || pat.symptoms || "";
+            document.getElementById("editPatNextDate").value = getLatestNextDateForPatient(pat) || "";
+            document.getElementById("editSavedPatientCard").classList.remove("hidden");
+            document.getElementById("editSavedPatientCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+        };
+
+        window.cancelEditSavedPatient = function() {
+            editingPatientId = null;
+            document.getElementById("editSavedPatientForm").reset();
+            document.getElementById("editSavedPatientCard").classList.add("hidden");
+        };
+
+        document.getElementById("editSavedPatientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!editingPatientId) return;
+            const idx = patientsCache.findIndex(p => p.id === editingPatientId);
+            if (idx === -1) return;
+
+            const pat = patientsCache[idx];
+            pat.name = document.getElementById("editPatName").value.trim();
+            pat.mobile = document.getElementById("editPatMobile").value.trim();
+            const ageVal = document.getElementById("editPatAge").value;
+            pat.age = ageVal ? Number(ageVal) : "";
+            pat.address = document.getElementById("editPatAddress").value.trim();
+            pat.problem = document.getElementById("editPatProblem").value.trim();
+            pat.nextDate = document.getElementById("editPatNextDate").value;
+
+            await upsertDoc("patients", pat.id, pat);
+            const updatedName = pat.name;
+            cancelEditSavedPatient();
+            renderAllViews();
+            if (activeDoctorPatientId === pat.id) {
+                openExistingPatientPanel(pat);
+            }
+            showDocBannerHtml(`"${updatedName}" ki saved entry update ho gayi.`);
+        });
 
         function showDocBannerHtml(html) {
             const b = document.getElementById("docActionBanner");
@@ -1045,7 +1194,10 @@
 
             document.getElementById("doctorLookupBody").innerHTML = `
                 <div class="patient-summary">
-                    <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile} | <strong>Age:</strong> ${displayAge}</div>
+                    <div class="biodata-top">
+                        <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile} | <strong>Age:</strong> ${displayAge}</div>
+                        <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${patient.id}')">Edit Entry</button>
+                    </div>
                     <div><strong>Address:</strong> ${displayAddress}</div>
                     <div><strong>Problem / Treatment:</strong> ${patient.problem || patient.symptoms || latestVisit?.treatment || "-"}</div>
                     <div><strong>Last Visit:</strong> ${latestVisit?.visitDate || patient.lastVisitDate || "-"} | <strong>Next Date:</strong> ${latestVisit?.nextDate || patient.nextDate || "-"}</div>
@@ -1224,6 +1376,7 @@
             );
         });
 
+        // Reception Tab Switch & Add Patient
         window.switchMainTab = function(tab) {
             const addTab = document.getElementById("addTabContent");
             const histTab = document.getElementById("historyTabContent");
@@ -1324,20 +1477,34 @@
             `;
         };
 
+        // 3. 15-15 Patients Pagination ("Aur 15 Patients Dekhein")
+        window.loadMorePatientsBatch = function() {
+            visiblePatientsLimit += PATIENTS_PAGE_SIZE;
+            renderLastPatientsBiodata();
+        };
+
         function renderLastPatientsBiodata() {
             const box = document.getElementById("lastPatientsBiodataList");
+            const shownEl = document.getElementById("shownPatientsCount");
+            const totalEl = document.getElementById("totalPatientsCount");
+            const loadMoreWrap = document.getElementById("loadMorePatientsWrap");
+            const loadMoreBtn = document.getElementById("loadMorePatientsBtn");
             if (!box) return;
 
-            const validPatients = patientsCache
-                .filter(hasValidPatientIdentity)
-                .slice(0, 10);
+            const validPatients = patientsCache.filter(hasValidPatientIdentity);
+            if (totalEl) totalEl.textContent = validPatients.length;
 
             if (!validPatients.length) {
+                if (shownEl) shownEl.textContent = "0";
+                if (loadMoreWrap) loadMoreWrap.classList.add("hidden");
                 box.innerHTML = `<p class="muted">Abhi koi patient record nahi hai.</p>`;
                 return;
             }
 
-            box.innerHTML = validPatients.map(p => {
+            const batch = validPatients.slice(0, visiblePatientsLimit);
+            if (shownEl) shownEl.textContent = batch.length;
+
+            box.innerHTML = batch.map(p => {
                 const displayName = p.name || p.patientName || p.fullName || "Patient";
                 const displayMobile = p.mobile || p.phone || "-";
                 const displayAge = p.age ? `${p.age} Saal` : "-";
@@ -1347,13 +1514,16 @@
                 const lastVisit = latest?.visitDate || p.lastVisitDate || "-";
                 const treatment = latest?.treatment || p.lastTreatment || p.problem || p.symptoms || "-";
                 const bill = latest?.bill ?? p.lastBill ?? "-";
-                const nextDate = latest?.nextDate || p.nextDate || "-";
+                const nextDate = getLatestNextDateForPatient(p) || "-";
 
                 return `
                     <div class="biodata-item">
                         <div class="biodata-top">
                             <div><strong>${displayName}</strong> <span class="muted">(${displayMobile}) | Age: ${displayAge}</span></div>
-                            <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
+                            <div class="action-btns">
+                                <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
+                                <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${p.id}')">Edit</button>
+                            </div>
                         </div>
                         <div class="muted">Address: <strong>${displayAddress}</strong></div>
                         <div class="muted">
@@ -1363,6 +1533,17 @@
                     </div>
                 `;
             }).join("");
+
+            const remaining = validPatients.length - batch.length;
+            if (loadMoreWrap && loadMoreBtn) {
+                if (remaining > 0) {
+                    const nextBatchCount = Math.min(PATIENTS_PAGE_SIZE, remaining);
+                    loadMoreBtn.textContent = `Aur ${nextBatchCount} Patients Dekhein (${remaining} bache hain)`;
+                    loadMoreWrap.classList.remove("hidden");
+                } else {
+                    loadMoreWrap.classList.add("hidden");
+                }
+            }
         }
 
         function renderAllViews() {
