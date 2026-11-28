@@ -666,16 +666,21 @@
 
                 <div>
                     <div class="card">
-                        <div class="biodata-top">
+                        <div class="biodata-top" style="margin-bottom:0;">
                             <h3 style="margin-bottom:0;">Patients Biodata List (<span id="shownPatientsCount">0</span> / <span id="totalPatientsCount">0</span>)</h3>
-                        </div>
-                        <div id="lastPatientsBiodataList" style="margin-top:10px;">
-                            <p class="muted">Abhi koi patient record nahi hai.</p>
-                        </div>
-                        <div id="loadMorePatientsWrap" class="hidden" style="margin-top:10px; text-align:center;">
-                            <button type="button" class="btn btn-sm btn-blue" id="loadMorePatientsBtn" onclick="loadMorePatientsBatch()">
-                                Aur 15 Patients Dekhein
+                            <button type="button" class="btn btn-sm btn-blue" id="toggleBiodataListBtn" onclick="toggleBiodataListVisibility()">
+                                📋 Biodata List Kholein
                             </button>
+                        </div>
+                        <div id="biodataCollapsibleBody" class="hidden" style="margin-top:12px;">
+                            <div id="lastPatientsBiodataList">
+                                <p class="muted">Abhi koi patient record nahi hai.</p>
+                            </div>
+                            <div id="loadMorePatientsWrap" class="hidden" style="margin-top:10px; text-align:center;">
+                                <button type="button" class="btn btn-sm btn-blue" id="loadMorePatientsBtn" onclick="loadMorePatientsBatch()">
+                                    Aur 15 Patients Dekhein
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -792,6 +797,7 @@
         let activeDoctorPatientId = null;
         let editingPatientId = null;
         let visiblePatientsLimit = PATIENTS_PAGE_SIZE;
+        let isBiodataListOpen = false;
         let nextTokenCounter = 1;
 
         function getLocalTodayISO() {
@@ -1816,6 +1822,21 @@
                 </div>
                 ${renderDateWiseVisitBoxesHtml(found, pVisits)}
             `;
+        };
+
+        window.toggleBiodataListVisibility = function() {
+            isBiodataListOpen = !isBiodataListOpen;
+            const bodyEl = document.getElementById("biodataCollapsibleBody");
+            const btnEl = document.getElementById("toggleBiodataListBtn");
+            if (bodyEl) {
+                bodyEl.classList.toggle("hidden", !isBiodataListOpen);
+            }
+            if (btnEl) {
+                btnEl.textContent = isBiodataListOpen ? "✕ Biodata List Chhupayein" : "📋 Biodata List Kholein";
+            }
+            if (isBiodataListOpen) {
+                renderLastPatientsBiodata();
+            }
         };
 
         window.loadMorePatientsBatch = function() {
