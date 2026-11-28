@@ -117,6 +117,17 @@
             border-color: var(--primary);
         }
 
+        .extra-phone-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .extra-phone-row input {
+            flex: 1;
+        }
+
         .btn {
             padding: 10px 16px;
             border: none;
@@ -488,11 +499,11 @@
         <div id="doctorInstantSection" class="hidden">
             <div class="doc-search-bar">
                 <label for="docTopMobileSearch" style="display:block; font-size:0.85rem; font-weight:600; color:#0f766e; margin-bottom:6px;">
-                    Patient Mobile Number Search (Purana Record ya Naya Patient Add Karein)
+                    Patient Mobile Number Search (Main ya Koi Bhi Extra Number Daalein)
                 </label>
                 <div class="doc-search-box">
                     <span class="search-icon" aria-hidden="true">🔍</span>
-                    <input type="tel" id="docTopMobileSearch" placeholder="Patient ka mobile number daalein..." oninput="handleDoctorMobileLookup()">
+                    <input type="tel" id="docTopMobileSearch" placeholder="Patient ka main ya alternate mobile number daalein..." oninput="handleDoctorMobileLookup()">
                     <button type="button" class="btn btn-sm btn-blue" onclick="handleDoctorMobileLookup()">Search</button>
                     <button type="button" class="btn btn-sm btn-gray" onclick="clearDoctorMobileLookup()">Clear</button>
                 </div>
@@ -526,8 +537,15 @@
                         <input type="text" id="editPatName" required>
                     </div>
                     <div class="form-group">
-                        <label>Mobile Number *</label>
+                        <label>Main Mobile Number *</label>
                         <input type="tel" id="editPatMobile" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Extra / Alternate Numbers</label>
+                        <div id="editExtraPhonesContainer"></div>
+                        <button type="button" class="btn btn-sm btn-blue" style="margin-top:8px;" onclick="addExtraPhoneRow('editExtraPhonesContainer')">
+                            ➕ Add More Number
+                        </button>
                     </div>
                     <div class="form-group">
                         <label>Age (Umra)</label>
@@ -565,7 +583,7 @@
                     <div class="card" id="doctorLookupResultCard">
                         <h3 id="lookupCardTitle">Mobile Search Result</h3>
                         <div id="doctorLookupBody">
-                            <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh har visit ki date-wise detail alag box mein aayegi, naya hoga toh Add Patient form khulega.</p>
+                            <p class="muted">Upar patient ka koi bhi mobile number daalein—purana patient hoga toh har visit ki date-wise detail alag box mein aayegi, naya hoga toh Add Patient form khulega.</p>
                         </div>
                     </div>
 
@@ -577,8 +595,12 @@
                                 <input type="text" id="docNewName" required placeholder="Patient ka poora naam">
                             </div>
                             <div class="form-group">
-                                <label>2. Mobile Number *</label>
+                                <label>2. Main Mobile Number *</label>
                                 <input type="tel" id="docNewMobile" required placeholder="10 digit mobile number">
+                                <div id="docNewExtraPhonesContainer"></div>
+                                <button type="button" class="btn btn-sm btn-blue" style="margin-top:8px;" onclick="addExtraPhoneRow('docNewExtraPhonesContainer')">
+                                    ➕ Add More Number
+                                </button>
                             </div>
                             <div class="form-group">
                                 <label>3. Age (Umra) *</label>
@@ -710,8 +732,12 @@
                                 <input type="text" id="pName" required placeholder="Poora naam likhein">
                             </div>
                             <div class="form-group">
-                                <label>Mobile Number *</label>
+                                <label>Main Mobile Number *</label>
                                 <input type="tel" id="pMobile" required placeholder="10 digit mobile number">
+                                <div id="recExtraPhonesContainer"></div>
+                                <button type="button" class="btn btn-sm btn-blue" style="margin-top:8px;" onclick="addExtraPhoneRow('recExtraPhonesContainer')">
+                                    ➕ Add More Number
+                                </button>
                             </div>
                             <div class="form-group">
                                 <label>Age (Umra) *</label>
@@ -750,13 +776,13 @@
 
             <div id="historyTabContent" class="hidden">
                 <div class="card">
-                    <h3>Patient History (Mobile Number Se Search Karein)</h3>
+                    <h3>Patient History (Main ya Extra Number Se Search Karein)</h3>
                     <div class="search-row" style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
                         <input type="tel" id="searchMobileInput" placeholder="Mobile number daalein..." style="flex:1; min-width:200px; padding:10px 12px; border:1.5px solid var(--border); border-radius:10px;">
                         <button class="btn btn-sm btn-blue" onclick="searchPatientByMobile()">Search</button>
                     </div>
                     <div id="receptionHistoryResult">
-                        <p class="muted">Kisi patient ka mobile number search karein.</p>
+                        <p class="muted">Kisi patient ka koi bhi mobile number search karein.</p>
                     </div>
                 </div>
             </div>
@@ -819,6 +845,79 @@
             return String(mob || "").replace(/\D/g, "");
         }
 
+        function getAlternatePhonesArray(patient) {
+            if (!patient || typeof patient !== "object") return [];
+            if (Array.isArray(patient.alternatePhones)) {
+                return patient.alternatePhones.map(x => String(x || "").trim()).filter(Boolean);
+            }
+            const rawStr = patient.alternatePhones || patient.alternateMobiles || patient.extraPhones || "";
+            return String(rawStr)
+                .split(/[,;\n|]+/)
+                .map(s => s.trim())
+                .filter(Boolean);
+        }
+
+        function getAllPatientPhones(patient) {
+            const mainMob = String(patient?.mobile || patient?.phone || "").trim();
+            const altList = getAlternatePhonesArray(patient);
+            const seen = new Set();
+            const combined = [];
+            [mainMob, ...altList].forEach(num => {
+                const digits = normalizeMobile(num);
+                if (digits && !seen.has(digits)) {
+                    seen.add(digits);
+                    combined.push(num.trim());
+                }
+            });
+            return combined;
+        }
+
+        function patientMatchesDigits(patient, searchDigits) {
+            if (!searchDigits) return false;
+            const allPhones = getAllPatientPhones(patient);
+            return allPhones.some(num => {
+                const d = normalizeMobile(num);
+                return d === searchDigits || d.includes(searchDigits);
+            });
+        }
+
+        function renderExtraPhoneRows(containerId, existingNumbers = []) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            box.innerHTML = "";
+            existingNumbers.forEach(num => addExtraPhoneRow(containerId, num));
+        }
+
+        window.addExtraPhoneRow = function(containerId, initialValue = "") {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            const idx = box.children.length + 1;
+            const row = document.createElement("div");
+            row.className = "extra-phone-row";
+            row.innerHTML = `
+                <input type="tel" class="extra-phone-input" value="${String(initialValue).replace(/"/g, "&quot;")}" placeholder="Extra Number #${idx} daalein...">
+                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+            `;
+            box.appendChild(row);
+        };
+
+        function collectExtraPhones(containerId) {
+            const box = document.getElementById(containerId);
+            if (!box) return [];
+            const inputs = Array.from(box.querySelectorAll(".extra-phone-input"));
+            const seen = new Set();
+            const list = [];
+            inputs.forEach(inp => {
+                const val = String(inp.value || "").trim();
+                const digits = normalizeMobile(val);
+                if (digits && !seen.has(digits)) {
+                    seen.add(digits);
+                    list.push(val);
+                }
+            });
+            return list;
+        }
+
         function formatWhatsAppNumber(mob = "") {
             const digits = normalizeMobile(mob);
             if (!digits) return "";
@@ -849,8 +948,8 @@
         function hasValidPatientIdentity(p) {
             if (!p || typeof p !== "object") return false;
             const possibleName = p.name || p.patientName || p.fullName || "";
-            const possibleMobile = p.mobile || p.phone || "";
-            return String(possibleName).trim() !== "" || String(possibleMobile).trim() !== "";
+            const phones = getAllPatientPhones(p);
+            return String(possibleName).trim() !== "" || phones.length > 0;
         }
 
         function resolveRoleFromEmail(email = "") {
@@ -1139,17 +1238,17 @@
         }
 
         function getVisitsForPatient(patient) {
-            const pMob = normalizeMobile(patient.mobile || patient.phone);
+            const pPhoneDigits = new Set(getAllPatientPhones(patient).map(normalizeMobile).filter(Boolean));
             const matchingPatientIds = new Set(
                 patientsCache
-                    .filter(p => p.id === patient.id || (pMob && normalizeMobile(p.mobile || p.phone) === pMob))
+                    .filter(p => p.id === patient.id || getAllPatientPhones(p).some(n => pPhoneDigits.has(normalizeMobile(n))))
                     .map(p => p.id)
             );
 
             const rawMatched = visitsCache.filter(v => {
                 if (matchingPatientIds.has(v.patientId)) return true;
                 const vMob = normalizeMobile(v.mobile || v.phone);
-                return Boolean(pMob && vMob && vMob === pMob);
+                return Boolean(vMob && pPhoneDigits.has(vMob));
             });
 
             const uniqueVisitsMap = new Map();
@@ -1248,11 +1347,13 @@
             if (!ok) return;
 
             const pat = patientsCache.find(p => p.id === patientId);
-            const pMob = pat ? normalizeMobile(pat.mobile || pat.phone) : "";
+            const pPhoneDigits = new Set((pat ? getAllPatientPhones(pat) : []).map(normalizeMobile).filter(Boolean));
 
-            const relatedVisits = visitsCache.filter(v =>
-                v.patientId === patientId || (pMob && normalizeMobile(v.mobile || v.phone) === pMob)
-            );
+            const relatedVisits = visitsCache.filter(v => {
+                if (v.patientId === patientId) return true;
+                const vMob = normalizeMobile(v.mobile || v.phone);
+                return Boolean(vMob && pPhoneDigits.has(vMob));
+            });
             for (const v of relatedVisits) {
                 if (v.id && !String(v.id).startsWith("fallback_")) {
                     await deleteDoc(VISITS_COLLECTION, v.id);
@@ -1399,7 +1500,7 @@
 
             listEl.innerHTML = pendingPatients.map(p => {
                 const displayName = p.name || p.patientName || p.fullName || "Patient";
-                const displayMobile = p.mobile || p.phone || "-";
+                const allPhonesText = getAllPatientPhones(p).join(", ") || "-";
                 const displayAge = p.age ? `${p.age} Saal` : "-";
                 const displayAddress = p.address || "-";
                 const pVisits = getVisitsForPatient(p);
@@ -1411,7 +1512,7 @@
                     <div class="upcoming-item">
                         <div class="biodata-top">
                             <div>
-                                <strong>${displayName}</strong> <span class="muted">(${displayMobile})</span>
+                                <strong>${displayName}</strong> <span class="muted">(${allPhonesText})</span>
                                 | <strong>Age:</strong> ${displayAge}
                             </div>
                             <div class="action-btns">
@@ -1438,6 +1539,7 @@
 
             document.getElementById("editPatName").value = pat.name || pat.patientName || pat.fullName || "";
             document.getElementById("editPatMobile").value = pat.mobile || pat.phone || "";
+            renderExtraPhoneRows("editExtraPhonesContainer", getAlternatePhonesArray(pat));
             document.getElementById("editPatAge").value = pat.age || "";
             document.getElementById("editPatAddress").value = pat.address || "";
             document.getElementById("editPatProblem").value = pat.problem || pat.lastTreatment || pat.symptoms || "";
@@ -1451,6 +1553,7 @@
         window.cancelEditSavedPatient = function() {
             editingPatientId = null;
             document.getElementById("editSavedPatientForm").reset();
+            document.getElementById("editExtraPhonesContainer").innerHTML = "";
             document.getElementById("editSavedPatientCard").classList.add("hidden");
         };
 
@@ -1463,6 +1566,11 @@
             const pat = patientsCache[idx];
             pat.name = document.getElementById("editPatName").value.trim();
             pat.mobile = document.getElementById("editPatMobile").value.trim();
+            const extraList = collectExtraPhones("editExtraPhonesContainer").filter(
+                n => normalizeMobile(n) !== normalizeMobile(pat.mobile)
+            );
+            pat.alternatePhones = extraList.join(", ");
+            pat.allMobiles = [pat.mobile, ...extraList].filter(Boolean).join(", ");
             const ageVal = document.getElementById("editPatAge").value;
             pat.age = ageVal ? Number(ageVal) : "";
             pat.address = document.getElementById("editPatAddress").value.trim();
@@ -1501,7 +1609,7 @@
             document.getElementById("lookupCardTitle").textContent = "Purana Patient Mila — Date-Wise Har Visit Detail";
 
             const displayName = patient.name || patient.patientName || patient.fullName || "Patient";
-            const displayMobile = patient.mobile || patient.phone || "-";
+            const allPhonesText = getAllPatientPhones(patient).join(", ") || "-";
             const displayAge = patient.age ? `${patient.age} Saal` : "-";
             const displayAddress = patient.address || "-";
             const pVisits = getVisitsForPatient(patient);
@@ -1510,7 +1618,7 @@
             document.getElementById("doctorLookupBody").innerHTML = `
                 <div class="patient-summary">
                     <div class="biodata-top">
-                        <div><strong>Naam:</strong> ${displayName} | <strong>Mobile:</strong> ${displayMobile} | <strong>Age:</strong> ${displayAge}</div>
+                        <div><strong>Naam:</strong> ${displayName} | <strong>Numbers:</strong> ${allPhonesText} | <strong>Age:</strong> ${displayAge}</div>
                         <div class="action-btns">
                             <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${patient.id}')">Edit Profile</button>
                             <button type="button" class="btn btn-sm btn-danger" onclick="deletePatientRecord('${patient.id}', '${displayName.replace(/'/g, "\\'")}')">Delete Patient</button>
@@ -1541,7 +1649,7 @@
             document.getElementById("doctorNewPatientCard").classList.remove("hidden");
             document.getElementById("lookupCardTitle").textContent = "Naya Patient (Record Nahi Mila)";
             document.getElementById("doctorLookupBody").innerHTML = `
-                <p class="muted">Mobile number <strong>${mobileDigits || ""}</strong> ke liye koi purana record nahi mila. Neeche <strong>Add Patient</strong> form mein details bhar kar save karein.</p>
+                <p class="muted">Mobile number <strong>${mobileDigits || ""}</strong> ke liye koi purana record nahi mila. Neeche <strong>Add Patient</strong> form mein details aur extra numbers jor kar save karein.</p>
             `;
             if (mobileDigits) {
                 document.getElementById("docNewMobile").value = mobileDigits;
@@ -1559,13 +1667,15 @@
                 document.getElementById("doctorExistingUpdateCard").classList.add("hidden");
                 document.getElementById("lookupCardTitle").textContent = "Mobile Search Result";
                 document.getElementById("doctorLookupBody").innerHTML = `
-                    <p class="muted">Upar patient ka mobile number daalein—purana patient hoga toh har visit ki date-wise detail alag box mein aayegi, naya hoga toh Add Patient form khulega.</p>
+                    <p class="muted">Upar patient ka koi bhi mobile number daalein—purana patient hoga toh har visit ki date-wise detail alag box mein aayegi, naya hoga toh Add Patient form khulega.</p>
                 `;
                 return;
             }
 
-            const matched = patientsCache.find(p => normalizeMobile(p.mobile || p.phone) === digits)
-                || patientsCache.find(p => normalizeMobile(p.mobile || p.phone).includes(digits));
+            const exactMatched = patientsCache.find(p =>
+                getAllPatientPhones(p).some(num => normalizeMobile(num) === digits)
+            );
+            const matched = exactMatched || patientsCache.find(p => patientMatchesDigits(p, digits));
 
             if (matched) {
                 openExistingPatientPanel(matched);
@@ -1583,7 +1693,7 @@
         window.selectPatientByIdForDoctor = function(patientId) {
             const pat = patientsCache.find(p => p.id === patientId);
             if (!pat) return;
-            document.getElementById("docTopMobileSearch").value = pat.mobile || pat.phone || "";
+            document.getElementById("docTopMobileSearch").value = pat.mobile || pat.phone || getAllPatientPhones(pat)[0] || "";
             openExistingPatientPanel(pat);
         };
 
@@ -1592,6 +1702,10 @@
 
             const name = document.getElementById("docNewName").value.trim();
             const mobile = document.getElementById("docNewMobile").value.trim();
+            const extraList = collectExtraPhones("docNewExtraPhonesContainer").filter(
+                n => normalizeMobile(n) !== normalizeMobile(mobile)
+            );
+            const allMobilesStr = [mobile, ...extraList].filter(Boolean).join(", ");
             const age = Number(document.getElementById("docNewAge").value || 0);
             const address = document.getElementById("docNewAddress").value.trim();
             const visitDate = document.getElementById("docNewVisitDate").value;
@@ -1606,6 +1720,8 @@
             const patientData = {
                 name,
                 mobile,
+                alternatePhones: extraList.join(", "),
+                allMobiles: allMobilesStr,
                 age,
                 gender: "",
                 address,
@@ -1632,6 +1748,7 @@
             const visitData = {
                 patientId: patientDocId,
                 mobile,
+                allMobiles: allMobilesStr,
                 visitDate,
                 lastVisitDate: visitDate,
                 visitIndex: 1,
@@ -1649,12 +1766,13 @@
             await upsertDoc(VISITS_COLLECTION, visitId, visitData);
 
             document.getElementById("docNewPatientForm").reset();
+            document.getElementById("docNewExtraPhonesContainer").innerHTML = "";
             document.getElementById("docNewVisitDate").value = todayISO();
 
             renderAllViews();
             openExistingPatientPanel({ id: patientDocId, ...patientData });
             showDocBannerHtml(
-                `Naya patient "${name}" save ho gaya (Bill: ₹${bill}, Next Date: ${nextDate}).` +
+                `Naya patient "${name}" save ho gaya (Numbers: ${allMobilesStr}, Bill: ₹${bill}, Next Date: ${nextDate}).` +
                 renderWhatsAppActionHtml(name, mobile, nextDate)
             );
         });
@@ -1685,6 +1803,7 @@
             const visitData = {
                 patientId: pat.id,
                 mobile: pat.mobile || pat.phone || "",
+                allMobiles: getAllPatientPhones(pat).join(", "),
                 visitDate,
                 lastVisitDate: visitDate,
                 visitIndex: nextVisitIndex,
@@ -1751,9 +1870,17 @@
         document.getElementById("addPatientForm").addEventListener("submit", async (e) => {
             e.preventDefault();
 
+            const mobileVal = document.getElementById("pMobile").value.trim();
+            const extraList = collectExtraPhones("recExtraPhonesContainer").filter(
+                n => normalizeMobile(n) !== normalizeMobile(mobileVal)
+            );
+            const allMobilesStr = [mobileVal, ...extraList].filter(Boolean).join(", ");
+
             const patientData = {
                 name: document.getElementById("pName").value.trim(),
-                mobile: document.getElementById("pMobile").value.trim(),
+                mobile: mobileVal,
+                alternatePhones: extraList.join(", "),
+                allMobiles: allMobilesStr,
                 age: Number(document.getElementById("pAge").value),
                 gender: document.getElementById("pGender").value,
                 address: document.getElementById("pAddress").value.trim(),
@@ -1789,6 +1916,7 @@
                 renderWhatsAppActionHtml(patientData.name, patientData.mobile, "");
 
             document.getElementById("addPatientForm").reset();
+            document.getElementById("recExtraPhonesContainer").innerHTML = "";
             renderAllViews();
         });
 
@@ -1808,7 +1936,7 @@
                 resEl.innerHTML = `<p class="muted">Mobile number daalein.</p>`;
                 return;
             }
-            const found = patientsCache.find(p => normalizeMobile(p.mobile || p.phone).includes(q));
+            const found = patientsCache.find(p => patientMatchesDigits(p, q));
             if (!found) {
                 resEl.innerHTML = `<p class="muted">Is mobile number ke liye koi patient record nahi mila.</p>`;
                 return;
@@ -1816,7 +1944,7 @@
             const pVisits = getVisitsForPatient(found);
             resEl.innerHTML = `
                 <div class="patient-summary">
-                    <div><strong>Naam:</strong> ${found.name || found.patientName || "Patient"} | <strong>Mobile:</strong> ${found.mobile || found.phone || "-"} | <strong>Age:</strong> ${found.age ? found.age + " Saal" : "-"}</div>
+                    <div><strong>Naam:</strong> ${found.name || found.patientName || "Patient"} | <strong>Numbers:</strong> ${getAllPatientPhones(found).join(", ") || "-"} | <strong>Age:</strong> ${found.age ? found.age + " Saal" : "-"}</div>
                     <div><strong>Address:</strong> ${found.address || "-"}</div>
                     <div><strong>Next Date:</strong> ${found.nextDate || "-"}</div>
                 </div>
@@ -1867,7 +1995,7 @@
 
             box.innerHTML = batch.map(p => {
                 const displayName = p.name || p.patientName || p.fullName || "Patient";
-                const displayMobile = p.mobile || p.phone || "-";
+                const allPhonesText = getAllPatientPhones(p).join(", ") || "-";
                 const displayAge = p.age ? `${p.age} Saal` : "-";
                 const displayAddress = p.address || "-";
                 const pVisits = getVisitsForPatient(p);
@@ -1882,7 +2010,7 @@
                 return `
                     <div class="biodata-item">
                         <div class="biodata-top">
-                            <div><strong>${displayName}</strong> <span class="muted">(${displayMobile}) | Age: ${displayAge}</span></div>
+                            <div><strong>${displayName}</strong> <span class="muted">(${allPhonesText}) | Age: ${displayAge}</span></div>
                             <div class="action-btns">
                                 <button type="button" class="btn btn-sm btn-blue" onclick="selectPatientByIdForDoctor('${p.id}')">Open / Update</button>
                                 <button type="button" class="btn btn-sm" style="background:#b45309;" onclick="openEditSavedPatient('${p.id}')">Edit</button>
